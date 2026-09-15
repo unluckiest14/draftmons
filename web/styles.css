@@ -1,0 +1,2545 @@
+/* Draftmons board.
+ *
+ * Two things drive the layout. A pool is up to ~800 Pokemon, so the grid has
+ * to stay readable at that length and the cards have to be cheap to paint.
+ * And the thing a drafter does most is compare a cost against a sprite, so
+ * cost is the loudest element on a card after the picture.
+ */
+
+:root {
+  color-scheme: dark;
+
+  --bg: #0e1116;
+  --surface: #161b22;
+  --surface-2: #1c232d;
+  --surface-hover: #222b37;
+  --border: #2a333f;
+  --border-strong: #3a4553;
+
+  --text: #e6edf3;
+  --text-dim: #9aa7b4;
+  --text-faint: #6b7887;
+
+  --accent: #5aa9ff;
+  --accent-soft: rgba(90, 169, 255, 0.14);
+  --danger: #ff6b6b;
+  --warn: #f0b429;
+  --good: #3fcf8e;
+
+  --radius: 10px;
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+
+  /* Aliases. The setup wizard, the draft pills and the league library were
+     written against these names; without them every `var(--line)` border
+     resolved to currentColor and every `var(--ink-dim)` to the body text
+     colour. Defined once here so both themes get them. */
+  --line: var(--border);
+  --ink: var(--text);
+  --ink-dim: var(--text-dim);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --surface-2: #f0f3f7;
+  --surface-hover: #e8edf3;
+  --border: #dbe2ea;
+  --border-strong: #c3cdd9;
+
+  --text: #1a1f26;
+  --text-dim: #5a6773;
+  --text-faint: #8a95a1;
+
+  --accent: #1f6feb;
+  --accent-soft: rgba(31, 111, 235, 0.1);
+  --danger: #d1242f;
+  --warn: #bf8700;
+  --good: #1a7f4f;
+
+  --shadow: 0 8px 28px rgba(20, 30, 45, 0.14);
+}
+
+* { box-sizing: border-box; }
+
+/* Has to outrank the class rules below. `hidden` is a UA style, so any
+ * `.notice { display: flex }` silently beats it and the element stays on
+ * screen — which is how an empty notice bar ends up above the board. */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, select { font: inherit; color: inherit; }
+
+/* ------------------------------------------------------------- topbar */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand { display: flex; align-items: baseline; gap: 8px; }
+.brand-mark { color: var(--accent); font-size: 16px; }
+.brand-name { font-size: 16px; font-weight: 650; letter-spacing: -0.01em; }
+
+.pickers { display: flex; gap: 14px; flex-wrap: wrap; }
+
+.field { display: flex; flex-direction: column; gap: 3px; }
+.field-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+select, input[type='search'], input[type='number'] {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 6px 9px;
+  outline: none;
+}
+select:focus-visible, input:focus-visible, button:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+select { min-width: 170px; cursor: pointer; }
+select.compact { min-width: 130px; }
+
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+
+.budget {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 5px 11px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.budget-value { font-weight: 650; font-variant-numeric: tabular-nums; }
+.budget-label { font-size: 11px; color: var(--text-faint); }
+
+.icon-button {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  cursor: pointer;
+}
+.icon-button:hover { background: var(--surface-hover); }
+
+/* ------------------------------------------------------------- notice */
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 14px 20px 0;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warn);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+}
+.notice.is-error { border-left-color: var(--danger); }
+.notice-text { flex: 1; min-width: 240px; }
+.notice-text strong { color: var(--text); font-weight: 600; }
+.notice code {
+  padding: 1px 5px;
+  background: var(--surface-2);
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.button {
+  padding: 7px 13px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.button:hover { filter: brightness(1.08); }
+.button:disabled { opacity: 0.55; cursor: default; filter: none; }
+/* Destructive, and quiet until you are actually over it: deleting a league
+   is not the thing to draw the eye on a list of them. */
+.button.is-danger { color: var(--danger); }
+.button.is-danger:hover { background: var(--danger); border-color: transparent; color: #fff; }
+
+.button.is-quiet {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+/* ----------------------------------------------------------- controls */
+
+.controls { padding: 14px 20px 0; }
+
+.control-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.search-wrap { flex: 1 1 220px; min-width: 180px; }
+.search-wrap input { width: 100%; }
+
+.cost-cap { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--text-dim); }
+.cost-cap input { width: 130px; accent-color: var(--accent); cursor: pointer; }
+
+.check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-dim); cursor: pointer; }
+.check input { accent-color: var(--accent); cursor: pointer; }
+
+.view-toggle {
+  display: flex;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.view-button {
+  padding: 6px 12px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.view-button.is-active { background: var(--accent); color: #fff; font-weight: 600; }
+
+.result-count { margin: 10px 0 0; font-size: 12px; color: var(--text-faint); }
+
+/* -------------------------------------------------------------- board */
+
+.board { padding: 14px 20px 40px; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 12px;
+}
+
+/* The clickable square. A button, not a div: keyboard and screen reader
+   support come free, which matters on a page whose whole job is picking one
+   of 800 things. */
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 8px 9px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.12s, transform 0.12s, background 0.12s;
+}
+.card:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+}
+.card.is-banned { opacity: 0.44; }
+.card.is-banned:hover { opacity: 0.72; }
+
+.card-cost {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  min-width: 24px;
+  padding: 1px 6px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.card-cost.is-unpriced { background: var(--surface-2); color: var(--text-faint); border: 1px solid var(--border); }
+
+.card-sprite {
+  width: 76px;
+  height: 76px;
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+}
+.card-sprite.is-missing { display: grid; place-items: center; color: var(--text-faint); font-size: 22px; }
+
+.card-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.card-types { display: flex; gap: 4px; margin-top: 3px; }
+
+/* -------------------------------------------------------------- table */
+
+.table-wrap {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+table.pool { width: 100%; border-collapse: collapse; min-width: 560px; }
+/* The sprite and the numbers are fixed-width; the name column takes the
+   slack, so a long form name like "Tauros Paldea Aqua Breed" has room. */
+table.pool th:first-child, table.pool td:first-child { width: 56px; }
+table.pool th:nth-child(4), table.pool th:nth-child(5) { width: 70px; }
+table.pool th:last-child, table.pool td:last-child { width: 80px; }
+table.pool th {
+  position: sticky;
+  top: 0;
+  padding: 9px 12px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  text-align: left;
+  white-space: nowrap;
+}
+table.pool td { padding: 6px 12px; border-bottom: 1px solid var(--border); }
+table.pool tbody tr { cursor: pointer; }
+table.pool tbody tr:hover { background: var(--surface-hover); }
+table.pool tbody tr.is-banned { opacity: 0.48; }
+table.pool tbody tr:last-child td { border-bottom: none; }
+table.pool img { width: 44px; height: 44px; object-fit: contain; display: block; }
+table.pool .row-sprite.is-missing {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: var(--text-faint);
+}
+.cell-name { font-weight: 600; }
+.cell-num { text-align: right; font-variant-numeric: tabular-nums; }
+.cell-cost { font-weight: 700; }
+
+/* ---------------------------------------------------------- type pips */
+
+/* One size, everywhere.
+ *
+ * There used to be a `.sm` variant, and which one you got depended on which
+ * view you were looking at — so Ice on the draft board was visibly bigger
+ * than Ice in the pool list two panels away. A type is the same thing in
+ * every view, so it renders the same in every view.
+ *
+ * The fixed width is the other half of it. Sized to the longest type names
+ * (FIGHTING, ELECTRIC, PSYCHIC) so ICE is not a nub sitting beside them, and
+ * so a column of pills lines up instead of ragging. Padding alone cannot do
+ * that, because padding scales with the word.
+ */
+.type {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  /* Wide enough that even FIGHTING and ELECTRIC sit inside it, so every pill
+     is the same width rather than most-of-them-plus-two-outliers. */
+  min-width: 72px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  /* Without these the pill's height comes from the glyphs in the word, so ICE
+     and FIGHTING end up different heights — which is what "the second type
+     looks warped" was. */
+  line-height: 1.25;
+  vertical-align: middle;
+}
+
+/* Narrow screens cannot afford two 66px pills beside a name and a cost, so
+   the floor drops rather than the row wrapping or scrolling sideways. */
+@media (max-width: 560px) {
+  .type { min-width: 60px; font-size: 9px; padding: 2px 6px; }
+}
+/* Every row of pills centres them, so a one-type Pokémon and a two-type one
+   line up down the column. */
+.card-types, .slot-types, .picker-types, .draft-pick-types, .elim-meta,
+.confirm-types, .cell-types {
+  align-items: center;
+}
+
+/* The pool table put its pills straight into a <td>, which is not a flex
+   container — so they had no gap at all and sat welded together once the
+   pills got wider. */
+.cell-types { display: flex; gap: 4px; flex-wrap: wrap; }
+
+.type[data-type='normal']   { background: #9099a1; }
+.type[data-type='fire']     { background: #ff9d55; }
+.type[data-type='water']    { background: #4d90d5; }
+.type[data-type='electric'] { background: #e5c531; }
+.type[data-type='grass']    { background: #63bb5b; }
+.type[data-type='ice']      { background: #74cec0; }
+.type[data-type='fighting'] { background: #ce4069; }
+.type[data-type='poison']   { background: #ab6ac8; }
+.type[data-type='ground']   { background: #d97844; }
+.type[data-type='flying']   { background: #8fa8dd; }
+.type[data-type='psychic']  { background: #f97176; }
+.type[data-type='bug']      { background: #90c12c; }
+.type[data-type='rock']     { background: #c7b78b; }
+.type[data-type='ghost']    { background: #5269ac; }
+.type[data-type='dragon']   { background: #0a6dc4; }
+.type[data-type='dark']     { background: #5a5366; }
+.type[data-type='steel']    { background: #5a8ea1; }
+.type[data-type='fairy']    { background: #ec8fe6; }
+
+/* ------------------------------------------------------------- detail */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(4, 7, 11, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+.detail {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 31;
+  width: min(560px, 100vw);
+  height: 100vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  animation: slide-in 0.16s ease-out;
+}
+@keyframes slide-in { from { transform: translateX(18px); opacity: 0.4; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .detail { animation: none; }
+  .card { transition: none; }
+  .card:hover { transform: none; }
+}
+
+.detail-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.detail-art {
+  width: 92px;
+  height: 92px;
+  flex: none;
+  object-fit: contain;
+  background: var(--surface-2);
+  border-radius: 8px;
+}
+.detail-ident { flex: 1; min-width: 0; }
+.detail-name { margin: 0 0 3px; font-size: 20px; font-weight: 680; letter-spacing: -0.015em; }
+.detail-sub { font-size: 12px; color: var(--text-faint); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.detail-tags { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+
+.pill {
+  padding: 2px 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.pill.is-cost { background: var(--accent); border-color: transparent; color: #fff; }
+.pill.is-banned { background: var(--danger); border-color: transparent; color: #fff; }
+
+.detail-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.detail-close:hover { background: var(--surface-hover); color: var(--text); }
+
+.detail-body { padding: 4px 18px 40px; }
+
+.section { padding: 16px 0; border-bottom: 1px solid var(--border); }
+.section:last-child { border-bottom: none; }
+.section-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 11px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.section-note { font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text-faint); }
+
+/* stats */
+.stat-row {
+  display: grid;
+  grid-template-columns: 78px 34px 1fr;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 5px;
+}
+.stat-name { font-size: 12px; color: var(--text-dim); }
+.stat-value { font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; }
+.stat-track { height: 7px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+.stat-fill { height: 100%; border-radius: 999px; }
+.stat-total { margin-top: 10px; padding-top: 9px; border-top: 1px dashed var(--border); }
+
+/* matchups */
+.matchups { display: flex; flex-direction: column; gap: 8px; }
+.matchup-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.matchup-key {
+  flex: none;
+  width: 52px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+.matchup-key.x4 { color: var(--danger); }
+.matchup-key.x0 { color: var(--good); }
+
+/* abilities */
+.ability { padding: 9px 11px; background: var(--surface-2); border-radius: 8px; margin-bottom: 7px; }
+.ability-head { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
+.ability-name { font-weight: 650; }
+.ability-hidden {
+  padding: 1px 6px;
+  background: var(--accent-soft);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.ability-text { font-size: 12.5px; color: var(--text-dim); }
+
+/* movepool */
+.move-filter { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.move-filter input { flex: 1 1 130px; min-width: 110px; }
+
+.move-table-wrap { max-height: 360px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+table.moves { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.moves th {
+  position: sticky;
+  top: 0;
+  padding: 7px 9px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  text-align: left;
+}
+table.moves td { padding: 5px 9px; border-bottom: 1px solid var(--border); }
+table.moves tbody tr:last-child td { border-bottom: none; }
+.move-name { font-weight: 550; }
+.move-num { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-dim); }
+.move-cat { text-transform: capitalize; color: var(--text-dim); font-size: 11.5px; }
+.move-how { color: var(--text-faint); font-size: 11.5px; white-space: nowrap; }
+
+/* ------------------------------------------------------- placeholders */
+
+.placeholder { padding: 72px 20px; text-align: center; color: var(--text-faint); }
+.placeholder-icon { font-size: 30px; margin-bottom: 10px; opacity: 0.6; }
+.placeholder-title { font-size: 15px; font-weight: 600; color: var(--text-dim); margin-bottom: 5px; }
+.placeholder p { margin: 0 auto; max-width: 420px; }
+
+.skeleton-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 12px; }
+.skeleton {
+  height: 132px;
+  background: linear-gradient(100deg, var(--surface) 30%, var(--surface-hover) 50%, var(--surface) 70%);
+  background-size: 240% 100%;
+  border-radius: var(--radius);
+  animation: shimmer 1.3s linear infinite;
+}
+@keyframes shimmer { to { background-position: -240% 0; } }
+
+.spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: -2px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ------------------------------------------------------------- mobile */
+
+@media (max-width: 620px) {
+  .topbar { gap: 12px; padding: 10px 16px; }
+  .pickers { width: 100%; }
+  .pickers .field { flex: 1; }
+  .pickers select { min-width: 0; width: 100%; }
+  .topbar-right { margin-left: 0; }
+  .controls { padding: 12px 16px 0; }
+  .board { padding: 12px 16px 32px; }
+  .notice { margin: 12px 16px 0; }
+  .grid, .skeleton-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+  .card-sprite { width: 62px; height: 62px; }
+  .detail-body { padding: 4px 16px 40px; }
+  .detail-head { padding: 14px 16px; }
+  .stat-row { grid-template-columns: 66px 30px 1fr; }
+}
+
+/* ================================================================ tabs */
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.tab {
+  padding: 5px 14px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-weight: 550;
+  cursor: pointer;
+}
+.tab:hover { color: var(--text); }
+.tab.is-active { background: var(--surface); color: var(--text); font-weight: 650; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+
+/* ============================================================= planner */
+
+.planner {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+  padding: 16px 20px 48px;
+}
+
+/* ------------------------------------------------------- the plan list */
+
+.plan-list {
+  position: sticky;
+  top: 76px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.plan-list-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.plan-list-title { margin: 0; font-size: 13px; font-weight: 650; }
+
+.plan-items { display: flex; flex-direction: column; gap: 6px; }
+
+.plan-row {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.plan-row:hover { border-color: var(--border-strong); }
+.plan-row.is-active { border-color: var(--accent); background: var(--accent-soft); }
+
+.plan-row-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+.plan-row-name {
+  font-weight: 600;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plan-row-meta { font-size: 11px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+
+.plan-row-action {
+  width: 26px;
+  flex: none;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 12px;
+  cursor: pointer;
+}
+.plan-row-action:hover { background: var(--surface-hover); color: var(--text); }
+.plan-row-action.is-danger:hover { background: var(--danger); color: #fff; }
+
+.plan-empty { margin: 0; font-size: 12px; color: var(--text-faint); }
+
+.plan-privacy {
+  margin: 0;
+  padding-top: 11px;
+  border-top: 1px solid var(--border);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-faint);
+}
+.plan-privacy.is-error { color: var(--danger); }
+
+.plan-backup { display: flex; gap: 6px; }
+.plan-backup .button { flex: 1; padding: 5px 8px; font-size: 12px; text-align: center; }
+.plan-backup label.button { cursor: pointer; }
+
+/* ------------------------------------------------------- the plan view */
+
+.plan-main { min-width: 0; }
+.plan { display: flex; flex-direction: column; gap: 16px; }
+
+.plan-head { display: flex; gap: 10px; flex-wrap: wrap; }
+.plan-name {
+  flex: 1 1 220px;
+  min-width: 160px;
+  padding: 8px 11px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.plan-author {
+  flex: 1 1 170px;
+  min-width: 150px;
+  padding: 8px 11px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+/* meters */
+
+.meter-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.meter { flex: 1 1 200px; min-width: 170px; }
+.meter-label { display: flex; align-items: baseline; gap: 5px; margin-bottom: 5px; }
+.meter-value { font-size: 19px; font-weight: 680; font-variant-numeric: tabular-nums; }
+.meter-value.is-over { color: var(--danger); }
+.meter-of { font-size: 12px; color: var(--text-dim); }
+.meter-left { margin-left: auto; font-size: 11px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.meter-track { height: 6px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+.meter-fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.15s; }
+.meter-fill.is-over { background: var(--danger); }
+
+/* problems */
+
+.problems {
+  margin: 0;
+  padding: 11px 13px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warn);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.problem { display: flex; gap: 8px; font-size: 12.5px; color: var(--text-dim); }
+.problem-mark {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  background: var(--warn);
+  border-radius: 50%;
+  color: #1a1200;
+  font-size: 10px;
+  font-weight: 800;
+}
+.problem.is-error .problem-mark { background: var(--danger); color: #fff; }
+.problem.is-error { color: var(--text); }
+
+/* roster slots */
+
+.slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(224px, 1fr));
+  gap: 10px;
+}
+
+.slot {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.slot:hover { border-color: var(--border-strong); }
+.slot.is-missing { border-color: var(--danger); }
+
+.slot-open {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 11px 11px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.slot-top { display: flex; align-items: center; gap: 9px; }
+.slot-sprite { width: 46px; height: 46px; flex: none; object-fit: contain; }
+.slot-sprite.is-missing { display: grid; place-items: center; color: var(--text-faint); }
+.slot-ident { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.slot-name {
+  font-weight: 620;
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.slot-types { display: flex; gap: 4px; }
+.slot-cost {
+  flex: none;
+  min-width: 26px;
+  padding: 2px 7px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.slot-cost.is-unpriced { background: var(--surface-2); color: var(--text-faint); border: 1px solid var(--border); }
+
+.slot-detail { display: flex; gap: 6px; flex-wrap: wrap; align-items: baseline; }
+.slot-item { font-size: 12px; font-weight: 600; }
+.slot-ability { font-size: 11.5px; color: var(--text-dim); }
+.slot-item.is-empty, .slot-move.is-empty { color: var(--text-faint); font-weight: 400; font-style: italic; }
+.slot-item.is-banned, .slot-move.is-banned { color: var(--danger); text-decoration: underline wavy var(--danger); }
+
+.slot-moves { display: flex; gap: 4px; flex-wrap: wrap; }
+.slot-move {
+  padding: 1px 6px;
+  background: var(--surface-2);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.slot-move.is-empty { background: none; padding: 0; font-size: 11.5px; }
+
+.slot-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-faint);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.slot:hover .slot-remove, .slot-remove:focus-visible { opacity: 1; }
+.slot-remove:hover { background: var(--danger); border-color: transparent; color: #fff; }
+
+.slot-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 116px;
+  padding: 14px;
+  background: none;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-faint);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.slot-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.slot-add-plus { font-size: 20px; line-height: 1; }
+
+/* notes */
+
+.plan-notes { display: flex; flex-direction: column; gap: 5px; }
+.plan-notes textarea {
+  padding: 8px 11px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  resize: vertical;
+  font: inherit;
+  color: inherit;
+  outline: none;
+}
+.plan-notes textarea:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+/* export */
+
+.export {
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.export .section-title { margin-top: 0; }
+
+.paste-preview {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  resize: vertical;
+  outline: none;
+}
+
+.export-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.export-note { font-size: 11px; color: var(--text-faint); }
+
+/* ---------------------------------------------------------- the picker */
+
+.drawer-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 15px 18px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.drawer-art {
+  width: 60px;
+  height: 60px;
+  flex: none;
+  object-fit: contain;
+  background: var(--surface-2);
+  border-radius: 8px;
+}
+.drawer-ident { flex: 1; min-width: 0; }
+.drawer-title { margin: 0 0 2px; font-size: 18px; font-weight: 680; letter-spacing: -0.015em; }
+.drawer-sub { font-size: 12px; color: var(--text-faint); }
+.drawer-body { padding: 14px 18px 40px; }
+
+.picker-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.picker-controls input[type='search'] { flex: 1 1 160px; min-width: 140px; }
+
+.picker-list { display: flex; flex-direction: column; gap: 3px; }
+
+.picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 9px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  text-align: left;
+  cursor: pointer;
+}
+.picker-row:hover { background: var(--surface-2); border-color: var(--border); }
+.picker-row.is-taken { opacity: 0.45; cursor: default; }
+.picker-row.is-taken:hover { background: none; border-color: transparent; }
+
+.picker-sprite { width: 38px; height: 38px; flex: none; object-fit: contain; }
+.picker-sprite.is-missing { display: grid; place-items: center; color: var(--text-faint); }
+.picker-name { flex: 1; min-width: 0; font-weight: 580; font-size: 13px; }
+.picker-types { display: flex; gap: 4px; flex: none; }
+.picker-cost {
+  flex: none;
+  min-width: 30px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.picker-cost.is-over { color: var(--danger); }
+.picker-flag { flex: none; width: 52px; font-size: 10.5px; color: var(--text-faint); text-align: right; }
+.picker-more { margin: 10px 0 0; font-size: 11.5px; color: var(--text-faint); text-align: center; }
+
+/* ----------------------------------------------------- the set editor */
+
+.editor { display: flex; flex-direction: column; gap: 14px; }
+.editor-block { display: flex; flex-direction: column; gap: 5px; }
+.editor-pair { display: flex; gap: 12px; flex-wrap: wrap; }
+.editor-pair .editor-block { flex: 1 1 140px; min-width: 130px; }
+.editor-label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.editor-note { font-size: 11px; color: var(--text-faint); }
+
+.editor input[type='text'], .editor input:not([type]), .editor input[type='number'], .editor select {
+  width: 100%;
+  padding: 7px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  outline: none;
+}
+.editor input.is-banned { border-color: var(--danger); color: var(--danger); }
+
+.ev-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.ev-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ev-field span { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-faint); }
+.ev-field input { text-align: center; padding: 6px 2px !important; }
+.ev-total { font-size: 11px; font-weight: 650; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.ev-total.is-over { color: var(--danger); }
+
+.move-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+
+/* --------------------------------------------------- planner, narrow */
+
+@media (max-width: 860px) {
+  .planner { grid-template-columns: minmax(0, 1fr); padding: 14px 16px 40px; }
+  .plan-list { position: static; }
+  .plan-items { flex-direction: row; flex-wrap: wrap; }
+  .plan-row { flex: 1 1 190px; }
+}
+
+@media (max-width: 620px) {
+  .tabs { order: 3; }
+  .slots { grid-template-columns: minmax(0, 1fr); }
+  .ev-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .move-grid { grid-template-columns: minmax(0, 1fr); }
+  .meter-row { gap: 12px; }
+  .drawer-body { padding: 12px 16px 40px; }
+  .drawer-head { padding: 13px 16px; }
+}
+
+/* ------------------------------------------------------------- draft tab */
+
+.draft { display: grid; gap: 16px; padding: 16px; }
+
+.draft-bar {
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface);
+}
+.draft-status { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.draft-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+.draft-pill {
+  padding: 4px 10px; border-radius: 999px;
+  font-size: 12px; font-weight: 700; letter-spacing: .02em;
+}
+.draft-pill.is-setup { background: var(--line); color: var(--ink-dim); }
+.draft-pill.is-live  { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); }
+.draft-pill.is-done  { background: color-mix(in srgb, #3fb950 22%, transparent); color: #3fb950; }
+/* Your own turn has to be unmissable on a board people leave open for an hour. */
+.draft-pill.is-you {
+  background: var(--accent); color: var(--on-accent, #0b0d10);
+  animation: draft-pulse 1.8s ease-in-out infinite;
+}
+@keyframes draft-pulse { 50% { opacity: .62; } }
+@media (prefers-reduced-motion: reduce) { .draft-pill.is-you { animation: none; } }
+
+.draft-note, .draft-next { font-size: 13px; color: var(--ink-dim); }
+.draft-next { font-variant-numeric: tabular-nums; }
+.draft-identity { font-size: 13px; color: var(--ink-dim); margin-right: 4px; }
+
+.draft-error {
+  padding: 10px 14px; margin-bottom: 4px;
+  border: 1px solid color-mix(in srgb, #f85149 46%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, #f85149 12%, transparent);
+  color: #f85149; font-size: 13px;
+}
+
+/* Teams side by side on a wide screen, stacked on a phone. */
+.draft-teams {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.draft-team {
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface); overflow: hidden;
+}
+.draft-team.is-on-clock { border-color: var(--accent); }
+.draft-team.is-mine { box-shadow: inset 3px 0 0 var(--accent); }
+
+.draft-team-head {
+  display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
+  padding: 10px 12px; border-bottom: 1px solid var(--line);
+}
+.draft-team-pos { font-size: 12px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.draft-team-name { margin: 0; font-size: 15px; }
+.draft-team-owner { font-size: 12px; color: var(--ink-dim); }
+.draft-team-points {
+  margin-left: auto; font-size: 13px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.draft-team-points.is-out { color: var(--ink-dim); }
+
+.draft-slots { list-style: none; margin: 0; padding: 6px; display: grid; gap: 4px; }
+.draft-pick {
+  display: flex; gap: 8px; align-items: center;
+  padding: 4px 6px; border-radius: 8px; font-size: 13px;
+}
+.draft-pick-sprite { width: 32px; height: 32px; object-fit: contain; flex: none; }
+.draft-pick-name { font-weight: 600; }
+.draft-pick-types { display: flex; gap: 4px; }
+.draft-pick-cost {
+  margin-left: auto; font-variant-numeric: tabular-nums; color: var(--ink-dim);
+}
+.draft-pick.is-empty {
+  color: var(--ink-faint, var(--ink-dim)); font-size: 12px;
+  padding: 8px 6px; border: 1px dashed var(--line); opacity: .55;
+}
+
+/* The picker only appears on your turn, so it can afford to be prominent. */
+.draft-picker {
+  padding: 12px; border: 1px solid var(--accent); border-radius: 12px;
+  background: var(--surface);
+}
+.picker-head {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.picker-title { margin: 0; font-size: 15px; }
+.picker-search {
+  margin-left: auto; min-width: 200px; flex: 1 1 200px;
+  padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--bg); color: inherit; font: inherit;
+}
+.picker-grid {
+  display: grid; gap: 8px; max-height: 52vh; overflow-y: auto;
+  /* Wider cards: at 140px a name like Basculegion Male wrapped to three lines
+     and pushed its cost out of the card. */
+  grid-template-columns: repeat(auto-fill, minmax(204px, 1fr));
+}
+.picker-card {
+  display: flex; gap: 8px; align-items: center;
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--bg); color: inherit; font: inherit;
+  cursor: pointer; text-align: left;
+}
+/* min-width:0 is what lets a long name wrap instead of growing the flex item
+   past the card; the cost keeps its width either way. */
+/* Wide enough for the longest names in the pool — Basculegion Male,
+   Crabominable — to wrap at the space rather than through the word. */
+.picker-card .picker-name { flex: 1; min-width: 0; font-size: 11.5px; overflow-wrap: break-word; }
+.picker-card .picker-sprite { width: 42px; height: 42px; }
+.picker-card .picker-cost { flex: none; margin-left: 6px; }
+.picker-card:hover { border-color: var(--accent); }
+/* Dimmed, not disabled: the click still goes to the server, which is the only
+   thing that decides, and which can say why. */
+.picker-card.is-unaffordable { opacity: .42; }
+.picker-sprite { width: 34px; height: 34px; object-fit: contain; flex: none; }
+.picker-name { font-size: 12px; font-weight: 600; line-height: 1.2; }
+.picker-cost {
+  margin-left: auto; font-size: 13px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .draft { padding: 12px; }
+  .draft-bar { flex-direction: column; align-items: stretch; }
+  .draft-actions { justify-content: flex-start; }
+}
+
+/* ============================================================== league */
+
+.league { padding: 18px 20px 48px; }
+.league-main {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.panel {
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.panel-note { margin: 0 0 14px; font-size: 12.5px; line-height: 1.5; color: var(--text-dim); }
+.panel-note strong { color: var(--text); font-weight: 650; }
+.panel-body { display: flex; flex-direction: column; gap: 12px; }
+.panel-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+.panel-error { margin: 10px 0 0; font-size: 12.5px; color: var(--danger); }
+.panel-badge {
+  padding: 2px 8px;
+  background: var(--accent-soft);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* the token, shown once */
+
+.panel.is-secret { border-left: 3px solid var(--warn); }
+.panel.is-secret .panel-title { color: var(--warn); }
+
+.secret-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.secret-value {
+  flex: 1 1 260px;
+  min-width: 0;
+  padding: 8px 11px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  outline: none;
+}
+.secret-value.is-code {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-align: center;
+}
+.secret-check { margin: 14px 0 12px; font-size: 13px; }
+
+/* joining */
+
+.join-form { display: flex; flex-direction: column; gap: 4px; }
+.join-grid { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+.join-field { display: flex; flex-direction: column; gap: 4px; flex: 1 1 170px; min-width: 150px; }
+.join-note { font-size: 11px; line-height: 1.4; color: var(--text-faint); }
+
+.join-code, .join-team, .join-who {
+  padding: 8px 11px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  outline: none;
+}
+.join-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.join-form .button, .identity-form .button { align-self: flex-start; margin-top: 10px; }
+
+/* identity */
+
+.identity-name { color: var(--accent); }
+.identity-form { display: flex; flex-direction: column; }
+.identity-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.identity-row .join-field { flex: 1 1 200px; }
+.identity-row .button { margin-top: 0; margin-bottom: 17px; }
+
+/* the lobby */
+
+.lobby-body { display: flex; flex-direction: column; gap: 10px; }
+.lobby-count { margin: 0; font-size: 12.5px; color: var(--text-dim); }
+.lobby-count strong { color: var(--text); font-variant-numeric: tabular-nums; }
+
+.lobby-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; }
+.lobby-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  border-radius: 7px;
+}
+.lobby-row.is-me { border-color: var(--accent); background: var(--accent-soft); }
+.lobby-position {
+  flex: none;
+  width: 26px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.lobby-name { flex: 1; min-width: 0; font-weight: 600; font-size: 13px; }
+.lobby-owner { flex: none; font-size: 11.5px; color: var(--text-faint); }
+.lobby-you {
+  flex: none;
+  padding: 1px 7px;
+  background: var(--accent);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+/* commissioner, and every other panel that folds away. The stats tab's
+   results list uses the same treatment, so the two selectors are one rule
+   rather than a copy that drifts. */
+
+details.panel { padding: 0; }
+details.panel > summary {
+  margin: 0;
+  padding: 14px 18px;
+  cursor: pointer;
+  list-style: none;
+}
+details.panel > summary::-webkit-details-marker { display: none; }
+details.panel > summary::after {
+  content: '▾';
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+details.panel[open] > summary::after { content: '▴'; }
+details.panel > summary:hover { background: var(--surface-hover); }
+details.panel > .panel-body { padding: 0 18px 16px; }
+.adopt-form { display: flex; flex-direction: column; }
+
+@media (max-width: 620px) {
+  .league { padding: 14px 16px 40px; }
+  .join-grid { flex-direction: column; gap: 10px; }
+  .identity-row .button { margin-bottom: 0; }
+  .secret-value.is-code { font-size: 18px; letter-spacing: 0.1em; }
+}
+
+/* --------------------------------------------------------- draft clock */
+
+.draft-clock {
+  padding: 3px 9px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg);
+  font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14px;
+  min-width: 56px; text-align: center;
+}
+/* The last fifteen seconds are the only ones anyone reacts to. */
+.draft-clock.is-urgent {
+  border-color: #f85149; color: #f85149;
+  background: color-mix(in srgb, #f85149 12%, transparent);
+}
+
+.draft-event {
+  flex-basis: 100%;
+  font-size: 12px; color: var(--ink-dim);
+  padding: 4px 0;
+}
+
+.draft-team-late {
+  padding: 2px 7px; border-radius: 999px;
+  background: color-mix(in srgb, #d29922 22%, transparent);
+  color: #d29922; font-size: 11px; font-weight: 700;
+}
+
+.draft-pick.is-forfeit {
+  border: 1px dashed color-mix(in srgb, #d29922 50%, transparent);
+  color: var(--ink-dim); font-size: 12px; font-style: italic;
+  padding: 8px 6px;
+}
+
+/* ----------------------------------------------------------- setup wizard */
+
+.setup-scrim {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 24px 16px; overflow-y: auto;
+  background: color-mix(in srgb, #000 62%, transparent);
+}
+.setup-panel {
+  width: min(880px, 100%);
+  border: 1px solid var(--line); border-radius: 14px;
+  background: var(--surface); box-shadow: 0 24px 64px rgb(0 0 0 / .45);
+}
+.setup-head {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  padding: 14px 16px; border-bottom: 1px solid var(--line);
+}
+.setup-title { margin: 0; font-size: 16px; }
+.setup-stepbar { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.setup-head .icon-button { margin-left: 8px; }
+
+.setup-step {
+  font-size: 12px; color: var(--ink-dim);
+  padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line);
+}
+.setup-step.is-active { color: var(--accent); border-color: var(--accent); }
+.setup-step.is-done { opacity: .55; }
+
+.setup-body { padding: 16px; }
+.setup-pane { display: grid; gap: 14px; }
+.setup-lead { margin: 0; font-size: 14px; }
+.setup-hint { font-size: 12px; color: var(--ink-dim); line-height: 1.45; }
+
+.setup-error {
+  padding: 10px 14px; border-radius: 10px;
+  border: 1px solid color-mix(in srgb, #f85149 46%, transparent);
+  background: color-mix(in srgb, #f85149 12%, transparent);
+  color: #f85149; font-size: 13px;
+}
+
+.setup-field { display: grid; gap: 5px; }
+.setup-field input[type="text"], .setup-field input[type="number"],
+.setup-field select, .setup-toolbar input[type="search"], .setup-amount {
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--bg); color: inherit; font: inherit;
+}
+.setup-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.setup-or {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px; color: var(--ink-dim); text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.setup-or::before, .setup-or::after {
+  content: ''; flex: 1; height: 1px; background: var(--line);
+}
+
+.setup-drop {
+  display: grid; gap: 6px; justify-items: center; text-align: center;
+  padding: 22px 16px; cursor: pointer;
+  border: 2px dashed var(--line); border-radius: 12px;
+}
+.setup-drop:hover, .setup-drop.is-over { border-color: var(--accent); }
+.setup-drop-icon { font-size: 22px; color: var(--ink-dim); }
+.setup-drop input[type="file"] { display: none; }
+
+.setup-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.setup-toolbar input[type="search"] { flex: 1 1 180px; }
+.setup-amount { width: 110px; }
+.setup-check { display: flex; gap: 6px; align-items: center; font-size: 13px; }
+
+.setup-grid {
+  display: grid; gap: 6px; max-height: 42vh; overflow-y: auto;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  padding: 2px;
+}
+.setup-mon {
+  display: flex; gap: 7px; align-items: center; text-align: left;
+  padding: 5px 7px; border: 1px solid var(--line); border-radius: 9px;
+  background: var(--bg); color: inherit; font: inherit; cursor: pointer;
+}
+.setup-mon:hover { border-color: var(--accent); }
+.setup-mon.is-picked {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.setup-mon-sprite { width: 30px; height: 30px; object-fit: contain; flex: none; }
+.setup-mon-name { font-size: 12px; font-weight: 600; line-height: 1.2; }
+.setup-mon-cost {
+  margin-left: auto; font-size: 13px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.setup-mon.is-unpriced .setup-mon-cost { color: var(--ink-dim); font-weight: 400; }
+
+.setup-copyrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.setup-code {
+  flex: 1 1 200px; padding: 7px 10px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px; word-break: break-all;
+}
+.setup-token {
+  display: grid; gap: 8px; padding: 12px;
+  border: 1px solid color-mix(in srgb, #d29922 46%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, #d29922 9%, transparent);
+}
+
+@media (max-width: 560px) {
+  .setup-scrim { padding: 12px 8px; }
+  .setup-stepbar { margin-left: 0; }
+  .setup-grid { max-height: 38vh; }
+}
+
+/* =============================================================== stats */
+
+/* The standings and the elimination leaderboard. Both are read across a row —
+   a team against its weeks, a Pokémon against the leader — so the numbers are
+   tabular everywhere and nothing in a row is allowed to reflow as it grows. */
+
+.stats { padding: 18px 20px 48px; }
+.stats-main {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+/* the table */
+
+.standings-wrap { overflow-x: auto; }
+table.standings { width: 100%; border-collapse: collapse; }
+table.standings th {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  text-align: left;
+  white-space: nowrap;
+}
+table.standings td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+table.standings tbody tr:last-child td { border-bottom: none; }
+/* The team column takes every pixel the others do not, which pulls the record
+   and the week chips together on the right instead of stranding them across
+   the width of the panel. */
+table.standings th:nth-child(2), table.standings td:nth-child(2) { width: 100%; }
+table.standings .cell-num { width: 34px; white-space: nowrap; }
+/* The top seed reads as the top seed at a glance, without a colour that would
+   compete with the win and loss chips beside it. */
+table.standings tbody tr:first-child .rank-cell { color: var(--accent); font-weight: 700; }
+
+.rank-cell { width: 28px; color: var(--text-faint); font-weight: 600; }
+.standings-owner { margin-left: 7px; font-size: 11.5px; color: var(--text-faint); font-weight: 400; }
+.week-cell { width: 42px; text-align: center; white-space: nowrap; }
+.week-empty { color: var(--text-faint); }
+
+.result-chip {
+  display: inline-block;
+  min-width: 19px;
+  margin: 0 1px;
+  padding: 1px 0;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  cursor: default;
+}
+.result-chip.is-w { background: color-mix(in srgb, var(--good) 22%, transparent); color: var(--good); }
+.result-chip.is-l { background: color-mix(in srgb, var(--danger) 20%, transparent); color: var(--danger); }
+.result-chip.is-d { background: var(--surface-2); color: var(--text-dim); }
+
+/* the top five */
+
+.elim-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+/* Two rows: the identity line, then the bar spanning the full width under it.
+   The bar is the comparison, so it gets the width rather than a column. */
+.elim-row {
+  display: grid;
+  grid-template-columns: 20px 44px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border-radius: 8px;
+}
+.elim-rank { font-size: 13px; font-weight: 700; color: var(--text-faint); text-align: center; }
+.elim-sprite { width: 44px; height: 44px; object-fit: contain; }
+.elim-sprite.is-missing { display: grid; place-items: center; color: var(--text-faint); }
+.elim-ident { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.elim-name { font-weight: 650; font-size: 13.5px; }
+.elim-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.elim-team { font-size: 11.5px; color: var(--text-dim); }
+.elim-score { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.elim-count { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent); }
+.elim-of { font-size: 11px; color: var(--text-faint); }
+.elim-matches { width: 100%; text-align: right; font-size: 11px; color: var(--text-faint); }
+.elim-bar {
+  grid-column: 2 / -1;
+  height: 5px;
+  background: var(--surface);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.elim-fill { height: 100%; background: var(--accent); border-radius: 999px; }
+
+/* the results list */
+
+.match-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.match-row { padding: 8px 10px; background: var(--surface-2); border-radius: 8px; }
+.match-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.match-week {
+  flex: none;
+  min-width: 56px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.match-team { font-size: 13px; color: var(--text-dim); }
+.match-team.is-winner { color: var(--text); font-weight: 650; }
+.match-score { font-variant-numeric: tabular-nums; font-weight: 650; }
+.match-draw { font-size: 11px; color: var(--text-faint); }
+.match-replay { font-size: 11.5px; color: var(--accent); }
+.match-delete {
+  margin-left: auto;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+  color: var(--text-faint);
+  font-size: 11px;
+  cursor: pointer;
+}
+.match-delete:hover { background: var(--danger); border-color: transparent; color: #fff; }
+.match-delete:disabled { opacity: 0.5; cursor: default; }
+.match-elims { display: flex; gap: 5px; flex-wrap: wrap; margin: 6px 0 0 64px; }
+.match-elim {
+  padding: 1px 7px;
+  background: var(--surface);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* recording one */
+
+.result-form { display: flex; flex-direction: column; gap: 12px; }
+/* .join-field carries a flex-grow for the side-by-side rows it was written
+   for; in this column it would stretch the replay field down the panel. */
+.result-form > .join-field { flex: none; }
+.result-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+.result-grid .join-field { flex: 1 1 120px; min-width: 110px; }
+/* The two score boxes sit next to their team and never need the width a name
+   does, so they are pinned narrow rather than sharing the flex. */
+.result-grid .join-field:nth-child(3), .result-grid .join-field:nth-child(5) {
+  flex: 0 0 74px;
+  min-width: 74px;
+}
+.result-elims { display: flex; gap: 10px; flex-wrap: wrap; }
+.result-elims .join-field { flex: 1 1 220px; min-width: 190px; }
+.result-elim-input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  resize: vertical;
+}
+.result-elim-input:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.result-form .button { align-self: flex-start; }
+
+@media (max-width: 620px) {
+  .stats { padding: 14px 12px 40px; }
+  .elim-row { grid-template-columns: 18px 38px 1fr auto; gap: 8px; }
+  .elim-sprite { width: 38px; height: 38px; }
+  .match-elims { margin-left: 0; }
+}
+
+/* ---------------------------------------------------------- draft order */
+
+.draft-order {
+  padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface);
+}
+.order-head {
+  display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.order-title { margin: 0; font-size: 15px; }
+
+.order-list { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 5px; }
+.order-row {
+  display: flex; gap: 10px; align-items: center;
+  padding: 7px 10px; border: 1px solid var(--line); border-radius: 9px;
+  background: var(--bg); cursor: grab;
+}
+.order-row:active { cursor: grabbing; }
+.order-row:hover { border-color: var(--accent); }
+.order-pos {
+  min-width: 22px; text-align: center;
+  font-variant-numeric: tabular-nums; font-weight: 700; color: var(--ink-dim);
+}
+.order-name { font-weight: 600; font-size: 14px; }
+.order-owner { font-size: 12px; color: var(--ink-dim); }
+.order-row .icon-button:first-of-type { margin-left: auto; }
+.order-row .icon-button[disabled] { opacity: .3; cursor: default; }
+
+.order-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+@media (max-width: 560px) {
+  .order-row { flex-wrap: wrap; }
+  .order-owner { flex-basis: 100%; padding-left: 32px; }
+}
+
+
+/* ---------------------------------------------------------- the library */
+
+/* Every saved league, in the setup wizard's scrim — they are the same kind of
+   screen, a job you finish and dismiss. A card has to answer "which one is
+   this" without being opened, so the counts do the work the name cannot. */
+
+.setup-panel.is-library { width: min(720px, 100%); }
+
+.library-count {
+  margin-left: 5px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+.library-count:empty { display: none; }
+
+.library-note { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-dim); }
+
+.library-list { display: flex; flex-direction: column; gap: 8px; }
+
+.library-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.library-card:hover { border-color: var(--border-strong); }
+/* The league you are in, marked on the left edge the way the draft board
+   marks your own team. */
+.library-card.is-current {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.library-main { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.library-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+
+.library-name {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  text-align: left;
+  cursor: pointer;
+}
+.library-name:hover { color: var(--accent); }
+
+.library-badge {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.library-badge.is-current {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent);
+}
+
+.library-meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11.5px; color: var(--text-faint); }
+.library-stats { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.library-stat {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 11.5px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+/* An empty pool is the one state that is worth flagging: it is the league
+   somebody created and never finished setting up. */
+.library-stat.is-warn { color: var(--warn); }
+.library-stat.is-live { color: var(--accent); }
+.library-stat.is-complete { color: var(--good); }
+
+.library-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.library-actions .button { padding: 5px 10px; font-size: 12px; }
+
+.library-foot {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.library-foot .library-note { flex: 1 1 220px; }
+
+@media (max-width: 560px) {
+  .library-actions { margin-left: 0; }
+  .library-actions .button { flex: 1 1 auto; text-align: center; }
+}
+
+/* ------------------------------------------------- item picker & icons */
+
+/* Showdown's itemicons sheet: 24x24 cells, sixteen per row. */
+.item-icon {
+  width: 24px; height: 24px; flex: none;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+.item-icon.is-empty {
+  background-image: none;
+  border: 1px dashed var(--line); border-radius: 5px;
+  box-sizing: border-box; opacity: .5;
+}
+
+.item-combo { position: relative; display: grid; gap: 4px; }
+.item-input-row { display: flex; gap: 8px; align-items: center; }
+.item-input-row input { flex: 1; }
+
+.item-results {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 30;
+  max-height: 260px; overflow-y: auto;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--surface); box-shadow: 0 12px 32px rgb(0 0 0 / .35);
+}
+.item-option {
+  display: flex; gap: 9px; align-items: center; width: 100%;
+  padding: 5px 9px; border: 0; background: none; color: inherit;
+  font: inherit; text-align: left; cursor: pointer;
+}
+.item-option:hover { background: color-mix(in srgb, var(--accent) 15%, transparent); }
+.item-option-name { font-size: 13px; font-weight: 600; flex: none; }
+.item-option-desc {
+  font-size: 11px; color: var(--ink-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.item-option.is-banned .item-option-name { text-decoration: line-through; opacity: .65; }
+
+/* ----------------------------------------------------- natures and EVs */
+
+.editor-note.is-neutral { font-style: italic; opacity: .8; }
+
+.ev-presets { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+.ev-preset {
+  padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--bg); color: var(--ink-dim);
+  font: inherit; font-size: 12px; cursor: pointer;
+}
+.ev-preset:hover { border-color: var(--accent); color: inherit; }
+/* Derived from this Pokemon's own base stats, so it is worth pointing at. */
+.ev-preset.is-recommended {
+  border-color: var(--accent); color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* ------------------------------------------------- the drafted-team planner */
+
+/* Once the draft has run, the planner is your roster rather than the pool, so
+   two things need saying on the card itself: whether you are bringing this
+   Pokémon, and whether it is yours at all. */
+
+.roster-banner {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.roster-team { font-size: 14px; font-weight: 650; }
+.roster-fact {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 11.5px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.roster-note { flex: 1 1 220px; font-size: 11.5px; color: var(--text-faint); }
+
+/* A benched Pokémon is still yours and still worth reading, so it dims rather
+   than shrinking or moving — the grid must not reflow every time you change
+   your mind about who is coming. */
+.slot.is-benched { opacity: 0.5; }
+.slot.is-benched:hover { opacity: 0.8; }
+.slot.is-unowned { border-style: dashed; border-color: var(--warn); }
+
+.slot-bench {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-faint);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.slot-bench:hover { border-color: var(--accent); color: var(--accent); }
+/* In the lineup: filled, and always visible, unlike the remove button which
+   only appears on hover. Which six you are bringing is the state you scan the
+   grid for. */
+.slot-bench.is-in {
+  background: var(--accent);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 700;
+}
+
+/* Returning player sign-in, folded under the join form: most people reaching
+   this screen are joining for the first time. */
+.returning { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.returning-summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+  list-style: none;
+}
+.returning-summary::-webkit-details-marker { display: none; }
+.returning-summary::before { content: '▸ '; color: var(--text-faint); }
+.returning[open] .returning-summary::before { content: '▾ '; }
+.returning-summary:hover { color: var(--text); }
+.returning-body { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+
+/* Choosing whose roster to plan. A player never sees this — their token names
+   their team — so it is written for the commissioner who drafted for the
+   table and has to say which of those rosters they mean. */
+
+.roster-offer {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 9px 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.roster-offer-text { font-size: 12.5px; color: var(--text-dim); }
+
+.roster-select { min-width: 0; padding: 4px 8px; font-size: 14px; font-weight: 650; }
+
+.roster-clear {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-faint);
+  font-size: 11.5px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.roster-clear:hover { color: var(--accent); }
+
+/* The stranded-local-plans offer, inside the planner's storage note. */
+.upload-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.upload-prompt .button { align-self: flex-start; padding: 5px 10px; font-size: 12px; }
+
+/* Taking a team as your own, in the commissioner panel. Set apart from the
+   join code above it because it changes who this browser *is*, not what it
+   can hand out. */
+.take-team {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.take-team .section-title { margin-top: 0; }
+.take-team select { flex: 1 1 200px; }
+
+/* ------------------------------------------------------------ team logos */
+
+.team-logo {
+  width: 28px; height: 28px; flex: none;
+  border-radius: 7px; object-fit: cover;
+  background: var(--bg); border: 1px solid var(--line);
+}
+.team-logo.is-small { width: 22px; height: 22px; border-radius: 6px; }
+.team-logo.is-large { width: 72px; height: 72px; border-radius: 12px; }
+/* A team with no logo gets its initial rather than a broken-image box. */
+.team-logo.is-empty {
+  display: grid; place-items: center;
+  color: var(--ink-dim); font-weight: 700; font-size: 13px;
+}
+.team-logo.is-large.is-empty { font-size: 28px; }
+
+.logo-editor { display: grid; gap: 8px; margin-top: 12px; }
+.logo-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.logo-preview { flex: none; }
+
+.logo-drop {
+  flex: 1 1 220px; display: grid; gap: 3px; justify-items: center;
+  padding: 12px; cursor: pointer; text-align: center;
+  border: 2px dashed var(--line); border-radius: 10px;
+}
+.logo-drop:hover, .logo-drop.is-over { border-color: var(--accent); }
+.logo-drop input[type="file"] { display: none; }
+
+.editor-note.is-error { color: #f85149; }
+
+@media (max-width: 560px) {
+  .logo-row { flex-direction: column; align-items: stretch; }
+  .logo-preview { justify-self: center; }
+}
+
+/* ------------------------------------------------- the draft pick confirm */
+
+/* Clicking a card in the picker opens this instead of spending the pick. The
+   first two people to use the draft both took a Pokémon they only meant to
+   look at, and a pick cannot be taken back without the commissioner. */
+
+.confirm-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  overflow-y: auto;
+  background: color-mix(in srgb, #000 62%, transparent);
+}
+.confirm-panel {
+  width: min(460px, 100%);
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.confirm-head { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 14px; }
+.confirm-art { width: 96px; height: 96px; flex: none; object-fit: contain; }
+.confirm-art.is-missing { display: grid; place-items: center; color: var(--text-faint); }
+.confirm-ident { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.confirm-name { margin: 0; font-size: 19px; font-weight: 680; letter-spacing: -0.015em; }
+.confirm-types { display: flex; gap: 4px; flex-wrap: wrap; }
+.confirm-tags { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.confirm-cost {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.confirm-tier, .confirm-bst {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.confirm-stats { display: grid; gap: 5px; margin-bottom: 14px; }
+.confirm-stat {
+  display: grid;
+  grid-template-columns: 34px 30px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+.confirm-stat-name { font-size: 11px; font-weight: 600; color: var(--text-faint); }
+.confirm-stat-value { font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; }
+.confirm-stat-track { height: 6px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+.confirm-stat-fill { height: 100%; background: var(--accent); border-radius: 999px; }
+
+.confirm-note { margin: 0 0 14px; font-size: 12.5px; color: var(--text-dim); }
+.confirm-note.is-over { color: var(--danger); }
+.confirm-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.confirm-actions .button { flex: 1 1 auto; text-align: center; }
+
+/* -------------------------------------------------------- replay analyzer */
+
+.replay-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.replay-url { flex: 1 1 320px; }
+.replay-week { width: 80px; }
+.replay-row input {
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--bg); color: inherit; font: inherit;
+}
+
+.replay-result { display: grid; gap: 12px; margin-top: 12px; }
+.replay-meta {
+  display: flex; gap: 14px; flex-wrap: wrap;
+  font-size: 12px; color: var(--ink-dim);
+}
+
+.replay-side {
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px;
+  background: var(--bg);
+}
+.replay-side-head {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.replay-kd { font-size: 12px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.replay-team {
+  margin-left: auto; padding: 5px 8px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--surface); color: inherit; font: inherit; font-size: 13px;
+}
+/* How much of the side was drafted by the matched team: six of six is
+   certain, one of six is a coincidence worth a second look. */
+.replay-conf { font-size: 11px; color: var(--ink-dim); }
+.replay-conf.is-good { color: #3fb950; }
+
+.replay-mons {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 4px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+.replay-mon {
+  display: flex; gap: 8px; align-items: center; justify-content: space-between;
+  padding: 4px 8px; border-radius: 7px; background: var(--surface);
+  font-size: 12px;
+}
+.replay-mon.is-fainted { opacity: .55; }
+.replay-mon-name { font-weight: 600; }
+.replay-mon-kills { font-variant-numeric: tabular-nums; color: var(--ink-dim); }
+
+.replay-warn { margin: 0; font-size: 12px; color: #d29922; }
+
+/* ------------------------------------------------------- the draft queue */
+
+/* Queued in the Planner, offered in the Draft. The same numbers appear in both
+   places on purpose: the rank you set on one tab is what the other offers. */
+
+.slot-queue {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: none;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  text-align: left;
+}
+.slot-queue:hover { background: var(--surface-hover); color: var(--text); }
+.slot-queue-mark {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 10px;
+  font-weight: 700;
+}
+.slot-queue.is-queued { color: var(--accent); }
+.slot-queue.is-queued .slot-queue-mark { background: var(--accent); color: #fff; }
+
+.queue-panel {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.queue-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 8px; }
+.queue-note { flex: 1 1 240px; font-size: 11.5px; color: var(--text-faint); }
+
+.queue-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.queue-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--surface);
+}
+.queue-rank {
+  width: 18px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.queue-sprite { width: 30px; height: 30px; object-fit: contain; flex: none; }
+.queue-sprite.is-missing { display: grid; place-items: center; color: var(--text-faint); }
+.queue-name { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; }
+.queue-cost { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.queue-actions { display: flex; gap: 3px; flex: none; }
+.queue-move {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+  color: var(--text-faint);
+  font-size: 11px;
+  cursor: pointer;
+}
+.queue-move:hover { border-color: var(--accent); color: var(--accent); }
+.queue-move:disabled { opacity: 0.35; cursor: default; }
+.queue-move.is-danger:hover { background: var(--danger); border-color: transparent; color: #fff; }
+
+/* The strip above the picker during your turn. */
+.queue-strip {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--border);
+}
+.queue-strip-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.queue-chip {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 10px 4px 5px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.queue-chip:hover { background: var(--accent); color: #fff; }
+.queue-chip.is-unaffordable { opacity: 0.45; }
+.queue-chip-rank { font-size: 10px; font-weight: 700; color: var(--accent); }
+.queue-chip:hover .queue-chip-rank { color: #fff; }
+.queue-chip-sprite { width: 26px; height: 26px; object-fit: contain; flex: none; }
+.queue-chip-name { font-size: 12.5px; font-weight: 600; }
+.queue-chip-cost { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* A queued Pokémon in the grid says where it sits, so the two agree. */
+.picker-card.is-queued { border-color: var(--accent); }
+.picker-queued {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* --------------------------------------------------- knockout history */
+
+.ko-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 4px; }
+.ko-row {
+  display: flex; gap: 10px; align-items: baseline;
+  padding: 7px 10px; border-radius: 8px;
+  border-left: 3px solid transparent;
+  font-size: 13px; line-height: 1.4;
+}
+/* Tinted by whose Pokemon fainted, so a reader finds their own losses first. */
+.ko-row.is-p1 {
+  background: color-mix(in srgb, #2f81f7 14%, transparent);
+  border-left-color: #2f81f7;
+}
+.ko-row.is-p2 {
+  background: color-mix(in srgb, #f85149 14%, transparent);
+  border-left-color: #f85149;
+}
+.ko-turn {
+  flex: none; min-width: 56px;
+  font-size: 11px; font-weight: 700; color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.ko-text { flex: 1; }
+
+@media (max-width: 560px) {
+  .ko-row { flex-direction: column; gap: 2px; }
+}
+
+/* ------------------------------------------------- your turn, on the pool */
+
+/* The Pool tab is where people browse during a draft, so it has to be able to
+   say your turn came up and let you act on it. The Draft tab still owns the
+   order, the clock and everybody's picks. */
+
+.turn-banner {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 12px 20px 0;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 13px;
+}
+.turn-banner.is-mine {
+  border-left-color: var(--accent);
+  background: var(--accent-soft);
+}
+.turn-pill {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.turn-text { flex: 1 1 260px; color: var(--text-dim); }
+.turn-banner.is-mine .turn-text { color: var(--text); }
+
+.detail-draft { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+.detail-draft-note { font-size: 11.5px; color: var(--text-faint); }
+.detail-draft-note.is-over { color: var(--danger); }
+
+/* ------------------------------------------------------ your turn, loudly */
+
+/* A draft is an hour of waiting, and the moment it stops being your turn to
+   wait is easy to miss — especially on another tab. The banner tells you if
+   you are looking at the pool; this tells you if you are not. It fires once,
+   when the turn arrives, and dismissing it does not dismiss the turn. */
+
+.turn-alert {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: color-mix(in srgb, #000 55%, transparent);
+}
+.turn-alert-card {
+  width: min(420px, 100%);
+  padding: 22px;
+  border: 1px solid var(--accent);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 24px 64px rgb(0 0 0 / .5);
+  text-align: center;
+  animation: turn-pop 160ms ease-out;
+}
+@keyframes turn-pop {
+  from { transform: scale(0.94); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+/* Reduced motion still gets the alert, just without the pop. */
+@media (prefers-reduced-motion: reduce) {
+  .turn-alert-card { animation: none; }
+}
+
+.turn-alert-flash {
+  margin-bottom: 10px;
+  font-size: 30px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+}
+.turn-alert-line { margin: 0 0 4px; font-size: 14px; color: var(--text); }
+.turn-alert-clock { margin: 0 0 18px; font-size: 12.5px; color: var(--text-faint); }
+.turn-alert-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.turn-alert-actions .button { flex: 1 1 auto; text-align: center; }
+
+/* ------------------------------------------- knockout history: visual */
+
+.ko-panel {
+  margin-top: 12px; padding: 10px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--bg);
+}
+.ko-head {
+  display: flex; gap: 10px; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.ko-title { margin: 0; font-size: 14px; }
+.ko-tabs {
+  display: flex; gap: 2px; padding: 2px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+}
+.ko-tab {
+  padding: 4px 10px; border: 0; border-radius: 6px;
+  background: none; color: var(--ink-dim); font: inherit; font-size: 12px;
+  cursor: pointer;
+}
+.ko-tab.is-active { background: var(--accent); color: var(--on-accent, #0b0d10); }
+
+/* Column headers, one per player, so a row's left/right means something. */
+.ko-cols {
+  display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px;
+  padding: 0 0 6px 56px; margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+}
+.ko-col.is-p1 { color: #2f81f7; }
+.ko-col.is-p2 { color: #f85149; text-align: right; grid-column: 3; }
+
+.ko-vrow {
+  display: flex; gap: 8px; align-items: center;
+  padding: 6px 8px; border-radius: 8px; border-left: 3px solid transparent;
+}
+.ko-vrow.is-p1 {
+  background: color-mix(in srgb, #2f81f7 13%, transparent); border-left-color: #2f81f7;
+}
+.ko-vrow.is-p2 {
+  background: color-mix(in srgb, #f85149 13%, transparent); border-left-color: #f85149;
+}
+.ko-vrow .ko-turn { min-width: 34px; }
+
+.ko-lane {
+  flex: 1; display: grid; grid-template-columns: 1fr auto 1fr;
+  gap: 8px; align-items: center;
+}
+.ko-actor { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.ko-lane > .ko-actor:last-child { justify-content: flex-end; }
+.ko-actor.is-blank { min-height: 34px; }
+.ko-sprite { width: 34px; height: 34px; object-fit: contain; flex: none; }
+.ko-sprite.is-empty {
+  width: 34px; height: 34px;
+  border: 1px dashed var(--line); border-radius: 6px; opacity: .4;
+}
+.ko-name {
+  font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* The Pokemon that fainted is the one being read for. */
+.ko-actor.is-victim .ko-name { color: #f85149; font-weight: 700; }
+.ko-vrow.is-p2 .ko-actor.is-victim .ko-name { color: #f85149; }
+
+.ko-arrow {
+  position: relative; display: grid; justify-items: center; gap: 2px;
+  min-width: 108px; padding: 0 4px;
+}
+.ko-move {
+  padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface);
+  font-size: 11px; white-space: nowrap;
+}
+.ko-arrowhead { display: block; width: 100%; height: 0; border-top: 2px solid currentColor; }
+.ko-arrow.points-right { color: #2f81f7; }
+.ko-arrow.points-left { color: #f85149; }
+/* Dashed for recoil, items and abilities: the damage was real but nobody
+   swung for it. */
+.ko-arrow.is-indirect .ko-arrowhead { border-top-style: dashed; }
+.ko-arrow.points-right .ko-arrowhead {
+  clip-path: polygon(0 0, calc(100% - 7px) 0, calc(100% - 7px) 0, 100% 0);
+}
+.ko-arrow.points-right::after,
+.ko-arrow.points-left::after {
+  content: ''; position: absolute; bottom: -4px;
+  border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+}
+.ko-arrow.points-right::after { right: 0; border-left: 7px solid currentColor; }
+.ko-arrow.points-left::after { left: 0; border-right: 7px solid currentColor; }
+.ko-arrow.no-source .ko-arrowhead { display: none; }
+
+@media (max-width: 620px) {
+  .ko-cols { display: none; }
+  .ko-lane { grid-template-columns: 1fr; gap: 4px; }
+  .ko-lane > .ko-actor:last-child { justify-content: flex-start; }
+  .ko-arrow { min-width: 0; justify-items: start; }
+  .ko-arrowhead, .ko-arrow::after { display: none; }
+}
+
+/* A pool entry somebody has already drafted. Dimmed but still clickable: it
+   is worth planning around a Pokémon you might trade for, and refusing to
+   list it would just look like the pool was missing one. */
+.picker-row.is-drafted { opacity: 0.55; }
+.picker-row.is-drafted .picker-flag { color: var(--warn); }
+
+/* ------------------------------------------------- roster: one per row */
+
+/* The Roster tab reads down a list; the Planner keeps its grid. */
+.slots.is-vertical { grid-template-columns: 1fr; }
+.slots.is-vertical .slot { display: flex; align-items: center; gap: 14px; }
+.slots.is-vertical .slot > * { margin: 0; }
+/* The sprite and name lead the row; everything else lines up after them so
+   the columns agree from one Pokemon to the next. */
+.slots.is-vertical .slot-head { flex: 0 0 210px; }
+.slots.is-vertical .slot-body { flex: 1; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+
+@media (max-width: 720px) {
+  .slots.is-vertical .slot { flex-direction: column; align-items: stretch; gap: 8px; }
+  .slots.is-vertical .slot-head { flex: none; }
+}

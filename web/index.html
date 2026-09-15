@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Draftmons — Draft Board</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">◆</span>
+      <span class="brand-name">Draftmons</span>
+    </div>
+
+    <nav class="tabs" role="tablist" aria-label="View">
+      <button class="tab is-active" type="button" role="tab" data-tab="board" aria-selected="true">Pool</button>
+      <button class="tab" type="button" role="tab" data-tab="draft" aria-selected="false">Draft</button>
+      <button class="tab" type="button" role="tab" data-tab="planner" aria-selected="false">Planner</button>
+      <button class="tab" type="button" role="tab" data-tab="roster" aria-selected="false">Roster</button>
+      <button class="tab" type="button" role="tab" data-tab="stats" aria-selected="false">Stats</button>
+      <button class="tab" type="button" role="tab" data-tab="league" aria-selected="false">League</button>
+    </nav>
+
+    <div class="pickers">
+      <label class="field">
+        <span class="field-label">Season</span>
+        <select id="season-select"><option value="">Loading…</option></select>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Format</span>
+        <select id="format-select"><option value="">Loading…</option></select>
+      </label>
+    </div>
+
+    <div class="topbar-right">
+      <!-- Every league this server holds, kept and switchable. The picker to
+           the left changes league; this is where you find one you have not
+           opened in a month, rename it, or throw it away. -->
+      <button id="library-open" class="button is-quiet" type="button">
+        Leagues <span id="library-count" class="library-count"></span>
+      </button>
+
+      <!-- The entry point for a commissioner. Everything behind it used to
+           require /docs: creating the season, building the pool, pricing it. -->
+      <button id="setup-open" class="button is-primary" type="button">New draft</button>
+      <div id="budget" class="budget" hidden>
+        <span class="budget-value"></span>
+        <span class="budget-label">budget</span>
+      </div>
+      <button id="theme-toggle" class="icon-button" type="button" title="Toggle theme">☾</button>
+    </div>
+  </header>
+
+  <!-- Setup-only affordance. The pool build is one PokeAPI call per Pokemon,
+       so it is never automatic: it appears when the selected format has no
+       pool yet, and a commissioner has to ask for it on purpose. -->
+  <div id="notice" class="notice" hidden></div>
+
+  <!-- ------------------------------------------------------ league library -->
+
+  <!-- Modelled on the setup wizard's scrim, because they are the same kind of
+       thing: a full-screen job you finish and dismiss, not a tab you live in. -->
+  <div id="library" class="setup-scrim" hidden role="dialog" aria-modal="true"
+       aria-label="Your leagues">
+    <div class="setup-panel is-library">
+      <header class="setup-head">
+        <h2 class="setup-title">Your leagues</h2>
+        <button id="library-close" class="icon-button" type="button" title="Close">✕</button>
+      </header>
+
+      <div id="library-body" class="setup-body"></div>
+    </div>
+  </div>
+
+  <!-- ------------------------------------------------------- setup wizard -->
+
+  <div id="setup" class="setup-scrim" hidden role="dialog" aria-modal="true"
+       aria-label="Create a draft league">
+    <div class="setup-panel">
+      <header class="setup-head">
+        <h2 class="setup-title">Create a draft</h2>
+        <div id="setup-steps" class="setup-stepbar"></div>
+        <button id="setup-close" class="icon-button" type="button" title="Close">✕</button>
+      </header>
+      <div id="setup-body" class="setup-body"></div>
+    </div>
+  </div>
+
+  <!-- ------------------------------------------------------------ draft -->
+
+  <!-- The shared view: every team, every pick, everyone's remaining points.
+       Public on purpose — a draft board nobody else can see is a spreadsheet. -->
+  <section id="draft" class="draft" hidden>
+    <div class="draft-bar">
+      <div id="draft-status" class="draft-status"></div>
+      <div id="draft-actions" class="draft-actions"></div>
+    </div>
+    <div id="draft-order" class="draft-order" hidden></div>
+    <div id="draft-picker" class="draft-picker" hidden></div>
+    <div id="draft-teams" class="draft-teams"></div>
+  </section>
+
+  <!-- ------------------------------------------------------------ board -->
+
+  <!-- Your turn, said on the tab people actually browse during a draft. -->
+  <div id="turn-banner" class="turn-banner" hidden></div>
+
+  <!-- And said once, unmissably, at the moment it becomes true. Lives outside
+       every tab because your turn arrives wherever you happen to be. -->
+  <div id="turn-alert" class="turn-alert" hidden role="alertdialog" aria-modal="true"
+       aria-label="It is your pick"></div>
+
+  <section class="controls" id="controls" hidden>
+    <div class="control-row">
+      <div class="search-wrap">
+        <input id="search" type="search" placeholder="Search the pool…" autocomplete="off">
+      </div>
+
+      <select id="type-filter" class="compact"><option value="">All types</option></select>
+
+      <select id="sort" class="compact">
+        <option value="cost-desc">Cost, high to low</option>
+        <option value="cost-asc">Cost, low to high</option>
+        <option value="name-asc">Name, A–Z</option>
+        <option value="bst-desc">BST, high to low</option>
+      </select>
+
+      <label class="cost-cap">
+        <span id="cost-cap-label">Max cost: any</span>
+        <input id="cost-cap" type="range" min="0" max="30" value="30" step="1">
+      </label>
+
+      <label class="check">
+        <input id="show-banned" type="checkbox">
+        <span>Show banned</span>
+      </label>
+
+      <div class="view-toggle" role="group" aria-label="View">
+        <button type="button" class="view-button is-active" data-view="grid">Grid</button>
+        <button type="button" class="view-button" data-view="table">Table</button>
+      </div>
+    </div>
+
+    <p class="result-count" id="result-count"></p>
+  </section>
+
+  <main id="board" class="board" aria-live="polite"></main>
+
+  <!-- ---------------------------------------------------------- planner -->
+
+  <main id="planner" class="planner" hidden>
+    <aside class="plan-list">
+      <div class="plan-list-head">
+        <h2 class="plan-list-title">My plans</h2>
+        <button id="plan-new" class="button" type="button">+ New</button>
+      </div>
+
+      <div id="plan-items" class="plan-items"></div>
+
+      <p id="plan-privacy" class="plan-privacy">
+        Plans are saved in this browser only. They are never sent to the league
+        server, so nobody else can see them — and they do not follow you to
+        another device.
+      </p>
+
+      <div class="plan-backup">
+        <button id="plan-export" class="button is-quiet" type="button">Back up</button>
+        <label class="button is-quiet" for="plan-import">Restore</label>
+        <input id="plan-import" type="file" accept="application/json,.json" hidden>
+      </div>
+    </aside>
+
+    <section id="plan-main" class="plan-main"></section>
+  </main>
+
+  <!-- ----------------------------------------------------------- roster -->
+
+  <!-- After the draft: the Pokémon you actually own, the sets on them, and
+       which six you are bringing this week. Same shape as the planner, and
+       deliberately a different tab — "who do I want" and "who am I bringing"
+       are different questions asked at different times. -->
+  <main id="roster" class="planner" hidden>
+    <aside class="plan-list">
+      <div class="plan-list-head">
+        <h2 class="plan-list-title">My lineups</h2>
+        <button id="lineup-new" class="button" type="button">+ New</button>
+      </div>
+
+      <div id="lineup-items" class="plan-items"></div>
+
+      <p class="plan-privacy">
+        One lineup per week or per opponent. Every Pokémon you drafted is on all
+        of them; tick the ones you are bringing.
+      </p>
+    </aside>
+
+    <section id="roster-main" class="plan-main"></section>
+  </main>
+
+  <!-- ------------------------------------------------------------ stats -->
+
+  <!-- The season after the draft: who is winning, and whose Pokémon are doing
+       the winning. Public like the draft board; only the commissioner's token
+       can put a result into it. -->
+  <main id="stats" class="stats" hidden>
+    <div id="stats-main" class="stats-main"></div>
+  </main>
+
+  <!-- ----------------------------------------------------------- league -->
+
+  <!-- Joining, and what you are once you have. The one screen that exists so
+       nobody has to open /docs to get into a league. -->
+  <main id="league" class="league" hidden>
+    <div id="league-main" class="league-main"></div>
+  </main>
+
+  <!-- Team names from the league, so the paste's author field can be picked
+       rather than retyped. Populated per season. -->
+  <datalist id="league-teams"></datalist>
+
+  <!-- One scrim for both drawers. The board's detail panel and the planner's
+       editor are never open at the same time, so they share it. -->
+  <div id="scrim" class="scrim" hidden></div>
+  <aside id="detail" class="detail" hidden aria-label="Pokémon detail"></aside>
+  <aside id="plan-drawer" class="detail" hidden aria-label="Plan editor"></aside>
+
+  <!-- The query is a one-time cache break, for browsers that cached app.js
+       before the server started sending Cache-Control: no-cache. Once a
+       browser has fetched under the new header it revalidates every load and
+       this stops mattering; bump it if a stale module ever strands anyone
+       again. -->
+  <script type="module" src="app.js?v=2"></script>
+</body>
+</html>

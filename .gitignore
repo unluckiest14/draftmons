@@ -1,0 +1,42 @@
+# Virtual environments. .venv is a Windows one (Scripts/), .venv-linux is the
+# working WSL one — 139 MB between them, and both are rebuildable from
+# requirements.txt.
+.venv/
+.venv-linux/
+venv/
+env/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# The league database.
+#
+# Excluded on purpose, not just for size: it holds real league data and the
+# SHA-256 of every player's bearer token. The schema is in
+# database_schema.sql and the app recreates the file on first boot, so
+# nothing is lost by leaving it out.
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.backup-*
+
+# Windows alternate-data-stream leftovers from files copied out of Windows.
+*:Zone.Identifier
+
+# Pasted screenshots from the local assistant tooling.
+.mindflock_pastes/
+
+# Local editor/tool settings that are personal rather than project-wide.
+.claude/settings.local.json
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Server logs
+*.log
+logs/
