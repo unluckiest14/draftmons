@@ -34,12 +34,12 @@ import pathlib
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import format_service as fmt          # noqa: E402
-import showdown_items as items_data  # noqa: E402
-import showdown_rules as rules       # noqa: E402
-from poke_db import init_db, transaction   # noqa: E402
+from draftmons.services import format_service as fmt          # noqa: E402
+from draftmons import showdown_items as items_data  # noqa: E402
+from draftmons import showdown_rules as rules       # noqa: E402
+from draftmons.poke_db import init_db, transaction   # noqa: E402
 
 
 def fetch_rules() -> None:

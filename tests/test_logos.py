@@ -21,9 +21,9 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import team_logo  # noqa: E402
+from draftmons.services import team_logo  # noqa: E402
 
 
 def png(width: int = 8, height: int = 8) -> bytes:
@@ -49,10 +49,13 @@ def b64(data: bytes) -> str:
 @pytest.fixture()
 def league(tmp_path, monkeypatch):
     monkeypatch.setenv("DRAFT_DB", str(tmp_path / "logo.db"))
-    for mod in ("poke_db", "team_logo", "team_service", "player_service",
-                "player_routes", "draft_service", "draft_routes", "main"):
-        sys.modules.pop(mod, None)
-    main = importlib.import_module("main")
+    # No module reloading here any more. It existed to make poke_db pick up a
+    # new DRAFT_DB, which connect() now reads per call — and once these modules
+    # lived in a package, popping them from sys.modules stopped reloading them
+    # anyway (the parent package keeps an attribute for the old object) while
+    # happily producing a second copy of the app for the fixture to configure
+    # and the test to miss.
+    main = importlib.import_module("draftmons.app")
 
     with TestClient(main.app) as client:
         sid = client.post("/seasons", json={

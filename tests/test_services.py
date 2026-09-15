@@ -11,7 +11,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 STUB = {
@@ -67,10 +67,14 @@ def wire(request: httpx.Request) -> httpx.Response:
 @pytest.fixture()
 def app(tmp_path, monkeypatch):
     monkeypatch.setenv("DRAFT_DB", str(tmp_path / "t.db"))
-    for mod in ("poke_db", "pokeapi", "format_service", "pool_service", "team_service", "main"):
-        sys.modules.pop(mod, None)
-    main = importlib.import_module("main")
-    pokeapi = importlib.import_module("pokeapi")
+    # No module reloading here any more. It existed to make poke_db pick up a
+    # new DRAFT_DB, which connect() now reads per call — and once these modules
+    # lived in a package, popping them from sys.modules stopped reloading them
+    # anyway (the parent package keeps an attribute for the old object) while
+    # happily producing a second copy of the app for the fixture to configure
+    # and the test to miss.
+    main = importlib.import_module("draftmons.app")
+    pokeapi = importlib.import_module("draftmons.pokeapi")
 
     tiers = tmp_path / "formats-data.js"
     tiers.write_text(TIERS_JS)
@@ -80,14 +84,14 @@ def app(tmp_path, monkeypatch):
     main.app.state.poke = pokeapi.PokeApiClient(
         httpx.AsyncClient(transport=httpx.MockTransport(wire))
     )
-    yield client, str(tiers), importlib.import_module("format_service")
+    yield client, str(tiers), importlib.import_module("draftmons.services.format_service")
     client.__exit__(None, None, None)
 
 
 def load_formats(app):
     """Run the cron job's refresh against the fixture tier file."""
     client, tiers, fmt = app
-    from poke_db import transaction
+    from draftmons.poke_db import transaction
     with transaction() as conn:
         return fmt.refresh(conn, tiers)
 
@@ -124,15 +128,15 @@ def test_an_unranked_pokemon_falls_to_the_bottom_of_the_doubles_ladder(app):
     ladder does not rank sits at the bottom — so Nacli is Doubles UU legal.
     """
     load_formats(app)
-    from poke_db import connect
-    import format_service as fmt
+    from draftmons.poke_db import connect
+    from draftmons.services import format_service as fmt
     assert "nacli" in fmt.format_species(connect(), "gen9-doubles-uu")
 
 
 def test_national_dex_admits_past_pokemon_that_standard_play_bans(app):
     load_formats(app)
-    from poke_db import connect
-    import format_service as fmt
+    from draftmons.poke_db import connect
+    from draftmons.services import format_service as fmt
     conn = connect()
     assert "venusaurmega" not in fmt.format_species(conn, "gen9-ou")
     assert "venusaurmega" in fmt.format_species(conn, "gen9-natdex-ou")
@@ -161,8 +165,8 @@ def test_a_form_only_pokemon_takes_its_typing_from_the_form(app):
     Silvallys on the board, so it is worth pinning down without the network.
     """
     import asyncio
-    import pool_service as ps
-    from pokeapi import PokeApiClient
+    from draftmons.services import pool_service as ps
+    from draftmons.pokeapi import PokeApiClient
 
     def forms(request: httpx.Request) -> httpx.Response:
         path = request.url.path.split("api/v2/")[-1]
@@ -196,7 +200,7 @@ def test_a_form_only_pokemon_takes_its_typing_from_the_form(app):
 
 def test_every_overlay_form_names_a_base_species(app):
     """A typo in FORM_OVERLAYS would 404 at build time, silently dropping a mon."""
-    import pool_service as ps
+    from draftmons.services import pool_service as ps
     for form, base in ps.FORM_OVERLAYS.items():
         assert form.startswith(f"{base}-"), (form, base)
         assert ps.showdown_id(form) not in ps.FORM_ALIASES
@@ -218,8 +222,8 @@ def test_refresh_is_a_no_op_when_the_hash_is_unchanged(app):
 
 def test_uber_and_nonstandard_are_excluded_from_ou(app):
     load_formats(app)
-    from poke_db import connect
-    import format_service as fmt
+    from draftmons.poke_db import connect
+    from draftmons.services import format_service as fmt
     species = fmt.format_species(connect(), "gen9-ou")
     assert "koraidon" not in species        # Uber
     assert "venusaurmega" not in species    # isNonstandard: Past
@@ -522,7 +526,7 @@ def test_adding_an_unknown_name_is_a_404_with_a_useful_hint(app):
 
 
 def test_parse_cost_list_handles_commas_tabs_and_spaces(app):
-    import pool_service
+    from draftmons.services import pool_service
     assert pool_service.parse_cost_list("Great Tusk, 19") == [("Great Tusk", 19)]
     assert pool_service.parse_cost_list("Great Tusk\t19") == [("Great Tusk", 19)]
     assert pool_service.parse_cost_list("great-tusk 19") == [("great-tusk", 19)]

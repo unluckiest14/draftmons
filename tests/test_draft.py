@@ -15,9 +15,9 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import draft_service as drafts   # noqa: E402
+from draftmons.services import draft_service as drafts   # noqa: E402
 
 POOL = (
     "Great Tusk, 19\nKingambit, 18\nGholdengo, 17\nDragapult, 16\n"
@@ -75,12 +75,14 @@ def test_two_teams_alternate_in_pairs():
 def league(tmp_path, monkeypatch):
     """A season with a priced pool, three teams in order, and an admin token."""
     monkeypatch.setenv("DRAFT_DB", str(tmp_path / "d.db"))
-    for mod in ("poke_db", "pokeapi", "format_service", "pool_service",
-                "player_service", "player_routes", "draft_service",
-                "draft_routes", "main"):
-        sys.modules.pop(mod, None)
-    main = importlib.import_module("main")
-    pokeapi = importlib.import_module("pokeapi")
+    # No module reloading here any more. It existed to make poke_db pick up a
+    # new DRAFT_DB, which connect() now reads per call — and once these modules
+    # lived in a package, popping them from sys.modules stopped reloading them
+    # anyway (the parent package keeps an attribute for the old object) while
+    # happily producing a second copy of the app for the fixture to configure
+    # and the test to miss.
+    main = importlib.import_module("draftmons.app")
+    pokeapi = importlib.import_module("draftmons.pokeapi")
 
     client = TestClient(main.app)
     client.__enter__()
@@ -346,7 +348,7 @@ def expire(client, sid, seconds=61):
     SQLite's own clock, so moving the start time backwards is exactly what the
     passage of time looks like to this code.
     """
-    from poke_db import transaction
+    from draftmons.poke_db import transaction
     with transaction() as conn:
         conn.execute(
             "UPDATE draft SET clock_started_at = datetime('now', ?) WHERE season_id = ?",
@@ -506,7 +508,7 @@ def test_starting_clears_a_stale_deferral(league):
     order_now(client, sid)
     assert order_now(client, sid)["deferred_this_round"]
 
-    from poke_db import transaction
+    from draftmons.poke_db import transaction
     with transaction() as conn:
         conn.execute("UPDATE draft SET status = 'setup' WHERE season_id = ?", (sid,))
     client.post(f"/seasons/{sid}/draft/start", json={"pick_seconds": 60}, headers=admin)

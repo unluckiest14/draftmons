@@ -25,7 +25,7 @@ import json
 import sqlite3
 from typing import Any
 
-import pool_service
+from draftmons.services import pool_service
 
 # A result the standings show, and what it is worth in the "record" column.
 WIN, LOSS, DRAW = "W", "L", "D"

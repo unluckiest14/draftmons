@@ -15,10 +15,25 @@ import os
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
+
+from draftmons.paths import DATA
 from typing import Iterator
 
-DB_PATH = Path(os.environ.get("DRAFT_DB", "draft.db"))
-SCHEMA_PATH = Path(__file__).resolve().parent / "database_schema.sql"
+def db_path() -> Path:
+    """Where the league database lives, read fresh on every connection.
+
+    Read at call time rather than captured at import. That is what lets a test
+    point DRAFT_DB at a temporary file and have it take effect, without having
+    to reload this module — and reloading stopped working once these modules
+    moved into a package, because popping a submodule out of sys.modules
+    leaves the parent package still holding an attribute for the old one.
+    """
+    return Path(os.environ.get("DRAFT_DB", "draft.db"))
+
+
+# Kept for anything that reads the default at import time. Prefer db_path().
+DB_PATH = db_path()
+SCHEMA_PATH = DATA / "database_schema.sql"
 
 # table -> column -> the DDL fragment to add it with.
 # Kept in step with database_schema.sql by the test in tests/test_schema.py.
@@ -50,7 +65,7 @@ EXPECTED_COLUMNS: dict[str, dict[str, str]] = {
 
 def connect() -> sqlite3.Connection:
     conn = sqlite3.connect(
-        DB_PATH,
+        db_path(),
         # FastAPI runs sync endpoints in a threadpool and does not guarantee
         # that a dependency's cleanup runs on the thread that opened the
         # connection. Fails under uvicorn but not under TestClient.

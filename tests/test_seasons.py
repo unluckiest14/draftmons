@@ -16,7 +16,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 POOL = "Great Tusk, 19\nKingambit, 18\nGholdengo, 17\nDragapult, 16\n"
 STUB = {
@@ -45,12 +45,14 @@ def wire(request: httpx.Request) -> httpx.Response:
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("DRAFT_DB", str(tmp_path / "d.db"))
-    for mod in ("poke_db", "pokeapi", "format_service", "pool_service",
-                "player_service", "player_routes", "draft_service", "draft_routes",
-                "results_service", "results_routes", "season_service", "main"):
-        sys.modules.pop(mod, None)
-    main = importlib.import_module("main")
-    pokeapi = importlib.import_module("pokeapi")
+    # No module reloading here any more. It existed to make poke_db pick up a
+    # new DRAFT_DB, which connect() now reads per call — and once these modules
+    # lived in a package, popping them from sys.modules stopped reloading them
+    # anyway (the parent package keeps an attribute for the old object) while
+    # happily producing a second copy of the app for the fixture to configure
+    # and the test to miss.
+    main = importlib.import_module("draftmons.app")
+    pokeapi = importlib.import_module("draftmons.pokeapi")
 
     http = TestClient(main.app)
     http.__enter__()

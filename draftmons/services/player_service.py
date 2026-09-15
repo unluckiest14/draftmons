@@ -31,7 +31,7 @@ import secrets
 import sqlite3
 from typing import Any
 
-import team_service
+from draftmons.services import team_service
 
 # No 0/O/1/I/l: a join code gets read out on a voice call and typed by someone
 # who is half paying attention.

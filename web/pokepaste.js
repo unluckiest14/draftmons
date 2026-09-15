@@ -79,18 +79,26 @@ export const ivOf = (slot, key) =>
  */
 export const EV_PRESETS = [
   { id: 'phys-sweep', name: 'Physical sweeper', nature: 'Adamant or Jolly',
-    evs: { atk: 252, spe: 252, hp: 4 } },
+    evs: { atk: 252, spe: 252, def: 2 } },
   { id: 'spec-sweep', name: 'Special sweeper', nature: 'Modest or Timid',
-    evs: { spa: 252, spe: 252, hp: 4 } },
-  { id: 'bulky-phys', name: 'Bulky physical', nature: 'Adamant',
-    evs: { hp: 252, atk: 252, spd: 4 } },
-  { id: 'bulky-spec', name: 'Bulky special', nature: 'Modest',
-    evs: { hp: 252, spa: 252, spd: 4 } },
+    evs: { spa: 252, spe: 252, def: 2 } },
+  { id: 'bulky-phys', name: 'Bulky attacker', nature: 'Adamant',
+    evs: { hp: 252, atk: 252, def: 2 } },
+  { id: 'bulky-spec', name: 'Bulky special attacker', nature: 'Modest',
+    evs: { hp: 252, spa: 252, def: 2 } },
   { id: 'phys-wall', name: 'Physical wall', nature: 'Impish or Bold',
-    evs: { hp: 252, def: 252, spd: 4 } },
+    evs: { hp: 252, def: 252, spd: 2 } },
   { id: 'spec-wall', name: 'Special wall', nature: 'Careful or Calm',
-    evs: { hp: 252, spd: 252, def: 4 } },
+    evs: { hp: 252, spd: 252, def: 2 } },
 ];
+
+/** A spread written the way a set is: "252 HP / 252 Atk / 2 Def". */
+export function spreadText(evs) {
+  return EV_KEYS
+    .filter(([key]) => Number(evs?.[key]) > 0)
+    .map(([key, label]) => `${evs[key]} ${label}`)
+    .join(' / ');
+}
 
 /** Which preset this Pokemon's base stats point at. */
 export function recommendSpread(entry) {

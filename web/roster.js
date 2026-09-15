@@ -22,7 +22,8 @@
  */
 
 import { api } from './api.js';
-import { h, $, clear, placeholder } from './dom.js';
+import { h, $, clear, placeholder, spriteFor, typePip } from './dom.js';
+import * as poke from './pokeapi.js';
 import * as plans from './plans.js';
 import * as paste from './pokepaste.js';
 import * as session from './session.js';
@@ -492,28 +493,68 @@ function bringingMeter(lineup) {
   ]);
 }
 
+/* The roster as a table, not a wall of cards.
+ *
+ * What a roster is read for is short: what did each Pokemon cost, is it in the
+ * lineup, and what does it look like. A card per Pokemon spreads those four
+ * facts over a block the height of a paragraph, so eight of them do not fit on
+ * a screen together and the costs never line up under each other. A row each
+ * puts the whole team in one glance with the costs in a column that adds up.
+ *
+ * The set editor is still a click away — the row opens it — so nothing is
+ * lost by shrinking, only by scrolling less.
+ */
 function slotsView(lineup) {
   const slots = lineup.slots || [];
-  /* A single column here, unlike the Planner's grid. A roster is read down —
-   * who is in, who is benched, what each one costs — and a row per Pokémon
-   * keeps those in line with each other instead of scattered across a grid
-   * that reflows with the window. */
-  return h('div', { class: 'slots is-vertical' }, slots.map((slot, index) => sheet.slotCard(
-    host, lineup, index,
-    {
-      // What it went for, not what it lists at: the pool can be repriced after
-      // a draft and the pick still cost what it cost.
-      costOf: (row, entry) => roster.costOf.get(row.api_name) ?? entry?.cost ?? 0,
-      classesFor: (row) => [
-        ...(owns(row.api_name) ? [] : ['is-unowned']),
-        ...(plans.isIncluded(row) ? [] : ['is-benched']),
-      ],
-      corner: (row, at) => (owns(row.api_name)
-        ? benchButton(lineup, row, at)
-        // Not yours: it cannot be brought, so the only thing to do is drop it.
-        : sheet.removeButton(host, lineup, at, 'Not on your roster — remove')),
-    },
-  )));
+  const costOf = (slot) => roster.costOf.get(slot.api_name)
+    ?? ctx.entryFor(slot.api_name)?.cost ?? 0;
+
+  const rows = slots.map((slot, index) => {
+    const entry = ctx.entryFor(slot.api_name);
+    const included = plans.isIncluded(slot);
+    const mine = owns(slot.api_name);
+
+    return h('li', {
+      class: [
+        'roster-row',
+        included ? 'is-in' : 'is-benched',
+        mine ? '' : 'is-unowned',
+      ].filter(Boolean).join(' '),
+    }, [
+      mine
+        ? benchButton(lineup, slot, index)
+        : sheet.removeButton(host, lineup, index, 'Not on your roster — remove'),
+      // What it went for, not what it lists at: the pool can be repriced
+      // after a draft and the pick still cost what it cost.
+      h('span', { class: 'roster-cost', text: String(costOf(slot)) }),
+      h('button', {
+        class: 'roster-open',
+        type: 'button',
+        title: `Edit ${entry?.display_name || slot.api_name}`,
+        onclick: () => sheet.openSetEditor(host, lineup, index),
+      }, [
+        spriteFor(entry || {}, 'roster-sprite'),
+        h('span', { class: 'roster-name',
+          text: slot.nickname || entry?.display_name || poke.prettify(slot.api_name) }),
+        h('span', { class: 'roster-types' },
+          (entry?.types || []).map((type) => typePip(type, true))),
+      ]),
+    ]);
+  });
+
+  const spent = slots.reduce((sum, slot) => sum + costOf(slot), 0);
+
+  return h('div', { class: 'roster-table' }, [
+    h('div', { class: 'roster-head' }, [
+      h('span', { class: 'roster-cost', text: 'Cost' }),
+      h('span', { class: 'roster-name', text: 'Pokémon' }),
+    ]),
+    h('ol', { class: 'roster-rows' }, rows),
+    h('div', { class: 'roster-total' }, [
+      h('span', { class: 'roster-cost', text: String(spent) }),
+      h('span', { class: 'roster-name', text: `Total · ${slots.length} drafted` }),
+    ]),
+  ]);
 }
 
 function benchButton(lineup, slot, index) {

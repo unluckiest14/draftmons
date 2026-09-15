@@ -2530,16 +2530,68 @@ table.standings tbody tr:first-child .rank-cell { color: var(--accent); font-wei
 
 /* ------------------------------------------------- roster: one per row */
 
-/* The Roster tab reads down a list; the Planner keeps its grid. */
-.slots.is-vertical { grid-template-columns: 1fr; }
-.slots.is-vertical .slot { display: flex; align-items: center; gap: 14px; }
-.slots.is-vertical .slot > * { margin: 0; }
-/* The sprite and name lead the row; everything else lines up after them so
-   the columns agree from one Pokemon to the next. */
-.slots.is-vertical .slot-head { flex: 0 0 210px; }
-.slots.is-vertical .slot-body { flex: 1; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+/* A roster is a short table: what each Pokemon cost, whether it is in the
+   lineup, and what it looks like. Rows rather than cards so the whole team
+   fits on a screen and the costs line up in a column that adds up. */
+.roster-table {
+  border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+  background: var(--surface);
+}
+.roster-head, .roster-total {
+  display: flex; gap: 10px; align-items: center;
+  padding: 6px 10px; background: var(--bg);
+  font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.roster-head { border-bottom: 1px solid var(--line); }
+.roster-total {
+  border-top: 1px solid var(--line);
+  font-size: 12px; color: inherit; text-transform: none; letter-spacing: 0;
+}
+.roster-head .roster-cost, .roster-total .roster-cost { font-size: 12px; }
 
-@media (max-width: 720px) {
-  .slots.is-vertical .slot { flex-direction: column; align-items: stretch; gap: 8px; }
-  .slots.is-vertical .slot-head { flex: none; }
+.roster-rows { list-style: none; margin: 0; padding: 0; }
+.roster-row {
+  display: flex; gap: 10px; align-items: center;
+  padding: 2px 10px 2px 6px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+}
+.roster-row:last-child { border-bottom: 0; }
+.roster-row:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+/* Benched Pokemon stay legible but recede — they are still on the roster. */
+.roster-row.is-benched { opacity: .5; }
+.roster-row.is-unowned { opacity: .5; font-style: italic; }
+
+/* The column that adds up. Tabular figures so the digits stack. */
+.roster-cost {
+  flex: 0 0 44px; text-align: right;
+  font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14px;
+}
+
+/* The row itself is the button, so a click anywhere on it opens the set. */
+.roster-open {
+  flex: 1; display: flex; gap: 9px; align-items: center; min-width: 0;
+  padding: 3px 0; border: 0; background: none; color: inherit;
+  font: inherit; text-align: left; cursor: pointer;
+}
+.roster-sprite { width: 32px; height: 32px; object-fit: contain; flex: none; }
+.roster-sprite.is-missing {
+  display: grid; place-items: center;
+  border: 1px dashed var(--line); border-radius: 6px; color: var(--ink-dim);
+}
+.roster-name {
+  flex: 1; font-size: 13px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.roster-types { display: flex; gap: 3px; flex: none; }
+
+/* The bench toggle sits at the head of the row rather than in a card corner. */
+.roster-row .slot-bench, .roster-row .slot-remove {
+  position: static; flex: none; width: 22px; height: 22px;
+  display: grid; place-items: center; font-size: 12px;
+}
+
+@media (max-width: 480px) {
+  .roster-types { display: none; }
+  .roster-cost { flex-basis: 34px; }
 }

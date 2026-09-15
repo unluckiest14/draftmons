@@ -23,9 +23,9 @@ from typing import Any, Iterator
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-import replay_service as replays
-import results_service as results
-from poke_db import connect, transaction
+from draftmons.services import replay_service as replays
+from draftmons.services import results_service as results
+from draftmons.poke_db import connect, transaction
 
 router = APIRouter(prefix="/seasons/{season_id}/replay", tags=["replay"])
 

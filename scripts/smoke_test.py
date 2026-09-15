@@ -15,6 +15,7 @@ from __future__ import annotations
 import os
 import sys
 import tempfile
+from pathlib import Path
 import time
 
 SCRATCH = os.path.join(tempfile.gettempdir(), "draftmons_smoke.db")
@@ -22,11 +23,14 @@ os.environ["DRAFT_DB"] = SCRATCH
 if os.path.exists(SCRATCH):
     os.remove(SCRATCH)
 
+# Run from anywhere: put the project root on the path before importing the app.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from fastapi.testclient import TestClient   # noqa: E402
 
-import format_service as fmt                # noqa: E402
-import main                                 # noqa: E402
-from poke_db import init_db, transaction    # noqa: E402
+from draftmons.services import format_service as fmt                # noqa: E402
+from draftmons import app as main                         # noqa: E402
+from draftmons.poke_db import init_db, transaction    # noqa: E402
 
 PASS, FAIL = "  PASS", "  FAIL"
 failures: list[str] = []
@@ -45,7 +49,7 @@ def main_() -> int:
 
     print("\n=== 1. Formats: parsing the files in this folder ===")
     print(f"  tiers : {fmt.DEFAULT_SOURCE}")
-    import showdown_rules as rules
+    from draftmons import showdown_rules as rules
     print(f"  rules : {rules.FORMATS_TS}")
 
     init_db()   # create the tables before anything reads them

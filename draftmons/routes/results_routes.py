@@ -24,10 +24,10 @@ from typing import Iterator
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field, field_validator
 
-import player_service as players
-import results_service as results
-from player_routes import bearer
-from poke_db import connect, transaction
+from draftmons.services import player_service as players
+from draftmons.services import results_service as results
+from draftmons.routes.player_routes import bearer
+from draftmons.poke_db import connect, transaction
 
 router = APIRouter(prefix="/seasons/{season_id}", tags=["results"])
 

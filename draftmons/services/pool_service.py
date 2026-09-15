@@ -26,7 +26,7 @@ import re
 import sqlite3
 from typing import Any, NamedTuple
 
-from pokeapi import PokeApiClient, PokeApiNotFound
+from draftmons.pokeapi import PokeApiClient, PokeApiNotFound
 
 # Showdown id -> PokeAPI name, for the cases stripping cannot reach.
 FORM_ALIASES: dict[str, str] = {

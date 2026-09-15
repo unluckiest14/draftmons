@@ -34,7 +34,7 @@ import json
 import random
 import sqlite3
 
-import team_logo
+from draftmons.services import team_logo
 from datetime import datetime, timedelta, timezone
 from typing import Any
 

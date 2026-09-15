@@ -444,11 +444,13 @@ export function openSetEditor(host, plan, index) {
   ]);
   paintNature(slot.nature);
 
+  const evInputs = {};
   const evTotalLabel = h('span', { class: 'ev-total' });
   const paintEvTotal = () => {
     const total = paste.evTotal(plan.slots[index].evs);
     evTotalLabel.textContent = `${total} / ${paste.EV_TOTAL_MAX}`;
     evTotalLabel.classList.toggle('is-over', total > paste.EV_TOTAL_MAX);
+    evTotalLabel.title = paste.spreadText(plan.slots[index].evs) || 'No EVs';
   };
 
   /* Starting spreads. The recommended one is picked from this Pokemon's own
@@ -458,36 +460,64 @@ export function openSetEditor(host, plan, index) {
   const presetButtons = paste.EV_PRESETS.map((preset) => h('button', {
     class: preset.id === recommended ? 'ev-preset is-recommended' : 'ev-preset',
     type: 'button',
-    title: `${Object.entries(preset.evs).map(([k, v]) => `${v} ${k}`).join(' / ')}`
-      + ` · usually ${preset.nature}`,
+    title: `${paste.spreadText(preset.evs)} · usually ${preset.nature}`,
     text: preset.id === recommended ? `${preset.name} ★` : preset.name,
-    onclick: () => update({ evs: { ...preset.evs } }),
+    onclick: () => applySpread(preset.evs),
   }));
 
-  const evFields = paste.EV_KEYS.map(([key, label]) =>
-    h('label', { class: 'ev-field' }, [
-      h('span', { text: label }),
-      h('input', {
-        type: 'number',
-        min: '0',
-        max: String(paste.EV_STAT_MAX),
-        step: '4',
-        value: slot.evs?.[key] ? String(slot.evs[key]) : '',
-        placeholder: '0',
-        oninput: (event) => {
-          const value = Math.max(0, Math.min(paste.EV_STAT_MAX, Number(event.target.value) || 0));
-          const evs = { ...plan.slots[index].evs };
-          if (value) evs[key] = value;
-          else delete evs[key];
-          // Written straight through rather than via update(), so a re-render
-          // does not steal focus from the field being typed in.
-          plan.slots[index].evs = evs;
-          host.save(plan, { slots: plan.slots });
-          paintEvTotal();
-        },
-      }),
-    ]),
-  );
+  /* Applying a spread has to move the boxes on screen, not just the data
+   * behind them.
+   *
+   * `update()` repaints the roster list, not this drawer — the drawer is built
+   * once and its <input>s keep whatever value they were created with. So a
+   * preset used to change the stored EVs while the fields carried on showing
+   * the old numbers, and the total, which is computed from storage, then
+   * disagreed with everything visible: type 252/252/2 over a spread that
+   * still had a stray 4 in it and the meter reads 510 for six digits that add
+   * up to 506.
+   *
+   * Every stat is written, including the ones the spread leaves at zero, so
+   * nothing survives from the spread before it. */
+  const applySpread = (evs) => {
+    const next = {};
+    for (const [key] of paste.EV_KEYS) {
+      if (Number(evs[key]) > 0) next[key] = Number(evs[key]);
+    }
+    plan.slots[index].evs = next;
+    host.save(plan, { slots: plan.slots });
+    for (const [key, field] of Object.entries(evInputs)) {
+      field.value = next[key] ? String(next[key]) : '';
+    }
+    paintEvTotal();
+    host.repaint();
+  };
+
+  const evFields = paste.EV_KEYS.map(([key, label]) => {
+    const field = h('input', {
+      type: 'number',
+      min: '0',
+      max: String(paste.EV_STAT_MAX),
+      // 1, not 4: a spread may legitimately use a 2-point remainder, and a
+      // step of 4 makes the arrows skip straight past it.
+      step: '1',
+      value: slot.evs?.[key] ? String(slot.evs[key]) : '',
+      placeholder: '0',
+      oninput: (event) => {
+        const value = Math.max(0, Math.min(paste.EV_STAT_MAX, Number(event.target.value) || 0));
+        const evs = { ...plan.slots[index].evs };
+        if (value) evs[key] = value;
+        else delete evs[key];
+        // Written straight through rather than via update(), so a re-render
+        // does not steal focus from the field being typed in.
+        plan.slots[index].evs = evs;
+        host.save(plan, { slots: plan.slots });
+        paintEvTotal();
+      },
+    });
+    // Kept so a preset can write into the boxes, not only into the data.
+    evInputs[key] = field;
+    return h('label', { class: 'ev-field' }, [h('span', { text: label }), field]);
+  });
   paintEvTotal();
 
   const moveFields = [0, 1, 2, 3].map((moveIndex) =>

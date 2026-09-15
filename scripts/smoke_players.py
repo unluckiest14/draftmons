@@ -16,16 +16,20 @@ from __future__ import annotations
 import os
 import sys
 import tempfile
+from pathlib import Path
 
 SCRATCH = os.path.join(tempfile.gettempdir(), "draftmons_players.db")
 os.environ["DRAFT_DB"] = SCRATCH
 if os.path.exists(SCRATCH):
     os.remove(SCRATCH)
 
+# Run from anywhere: put the project root on the path before importing the app.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from fastapi.testclient import TestClient   # noqa: E402
 
-import main                                 # noqa: E402
-import team_service                         # noqa: E402
+from draftmons import app as main                         # noqa: E402
+from draftmons.services import team_service                         # noqa: E402
 
 PASS, FAIL = "  PASS", "  FAIL"
 failures: list[str] = []

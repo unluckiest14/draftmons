@@ -22,8 +22,8 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-import player_service as players
-from poke_db import connect, transaction
+from draftmons.services import player_service as players
+from draftmons.poke_db import connect, transaction
 
 router = APIRouter()
 

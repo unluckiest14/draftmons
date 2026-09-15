@@ -13,9 +13,9 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import replay_service as replays  # noqa: E402
+from draftmons.services import replay_service as replays  # noqa: E402
 
 LOG = """|player|p1|Ash|red|
 |player|p2|Gary|blue|

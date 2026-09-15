@@ -19,11 +19,13 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+
+from draftmons.paths import DATA
 from typing import Any, NamedTuple
 
-from showdown_rules import RulesetError, strip_comments, top_level_objects
+from draftmons.showdown_rules import RulesetError, strip_comments, top_level_objects
 
-HERE = Path(__file__).resolve().parent
+HERE = DATA
 
 ITEMS_TS = str(HERE / "items.ts")
 ITEMS_TEXT_TS = str(HERE / "items-text.ts")

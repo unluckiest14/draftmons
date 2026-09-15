@@ -21,13 +21,15 @@ import sqlite3
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+
+from draftmons.paths import DATA
 from typing import Any, NamedTuple
 
-import showdown_rules as rules
+from draftmons import showdown_rules as rules
 
 # The file Showdown ships, kept in the project folder. Resolved against this
 # module rather than the cwd so the cron job works from any directory.
-DEFAULT_SOURCE = str(Path(__file__).resolve().parent / "formats-data.js")
+DEFAULT_SOURCE = str(DATA / "formats-data.js")
 
 # Where to re-download it when Smogon moves tiers.
 UPSTREAM_SOURCE = "https://play.pokemonshowdown.com/data/formats-data.js"

@@ -30,9 +30,11 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+
+from draftmons.paths import DATA
 from typing import Any, Iterator, NamedTuple
 
-HERE = Path(__file__).resolve().parent
+HERE = DATA
 
 FORMATS_TS = str(HERE / "formats.ts")
 RULESETS_TS = str(HERE / "rulesets.ts")

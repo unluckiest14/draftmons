@@ -13,10 +13,10 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import format_service as fmt          # noqa: E402
-import showdown_rules as sr           # noqa: E402
+from draftmons.services import format_service as fmt          # noqa: E402
+from draftmons import showdown_rules as sr           # noqa: E402
 
 FORMATS_TS = """
 // A comment with a URL in it: https://example.com/thing

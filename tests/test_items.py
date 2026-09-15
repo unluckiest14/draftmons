@@ -13,9 +13,9 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import showdown_items as si        # noqa: E402
+from draftmons import showdown_items as si        # noqa: E402
 
 ITEMS_TS = """
 export const Items: import('../sim/dex-items').ItemDataTable = {
@@ -132,12 +132,16 @@ real_items = pytest.mark.skipif(
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("DRAFT_DB", str(tmp_path / "items.db"))
-    for mod in ("poke_db", "format_service", "pool_service", "main"):
-        sys.modules.pop(mod, None)
+    # No module reloading here any more. It existed to make poke_db pick up a
+    # new DRAFT_DB, which connect() now reads per call — and once these modules
+    # lived in a package, popping them from sys.modules stopped reloading them
+    # anyway (the parent package keeps an attribute for the old object) while
+    # happily producing a second copy of the app for the fixture to configure
+    # and the test to miss.
     import importlib
-    main = importlib.import_module("main")
-    import format_service as fmt
-    from poke_db import transaction
+    main = importlib.import_module("draftmons.app")
+    from draftmons.services import format_service as fmt
+    from draftmons.poke_db import transaction
     with TestClient(main.app) as started:
         with transaction() as conn:
             fmt.refresh(conn)

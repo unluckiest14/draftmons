@@ -16,16 +16,20 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("DRAFT_DB", str(tmp_path / "t.db"))
-    for mod in ("poke_db", "team_service", "player_service", "player_routes", "main"):
-        sys.modules.pop(mod, None)
-    main = importlib.import_module("main")
+    # No module reloading here any more. It existed to make poke_db pick up a
+    # new DRAFT_DB, which connect() now reads per call — and once these modules
+    # lived in a package, popping them from sys.modules stopped reloading them
+    # anyway (the parent package keeps an attribute for the old object) while
+    # happily producing a second copy of the app for the fixture to configure
+    # and the test to miss.
+    main = importlib.import_module("draftmons.app")
     with TestClient(main.app) as c:
         yield c
 
@@ -160,7 +164,7 @@ def test_rotating_the_code_invalidates_the_old_one_and_keeps_players(client):
 
 
 def test_the_season_fills_up(client):
-    import team_service
+    from draftmons.services import team_service
     season = make_season(client)
     code, _ = open_season(client, season)
     for i in range(team_service.MAX_TEAMS):

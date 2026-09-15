@@ -21,7 +21,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-import player_service as players
+from draftmons.services import player_service as players
 
 
 class SeasonError(Exception):
