@@ -40,3 +40,6 @@ Thumbs.db
 # Server logs
 *.log
 logs/
+
+# Throwaway pages used to seed localStorage while testing by hand.
+web/_tmp_*
