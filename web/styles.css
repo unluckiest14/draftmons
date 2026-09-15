@@ -1141,13 +1141,30 @@ table.moves tbody tr:last-child td { border-bottom: none; }
   color: #f85149; font-size: 13px;
 }
 
-/* Teams side by side on a wide screen, stacked on a phone. */
+/* Teams side by side on a wide screen, stacked on a phone.
+ *
+ * auto-fit rather than auto-fill, which is the whole difference here:
+ * auto-fill keeps every column it *could* fit whether or not anything is in
+ * it, so a three-team league on a wide monitor sat squashed in the left third
+ * with two empty columns of dead space beside it. auto-fit collapses the
+ * empty tracks, and the teams that exist share the width between them.
+ *
+ * The cap stops that becoming the opposite problem. Without it a two-team
+ * league would stretch each card to half a 1920px screen, leaving the cost of
+ * a pick stranded a foot away from its name. Past the cap the cards stay a
+ * sensible size and centre in their tracks, so the row is evenly spaced
+ * rather than evenly stretched.
+ */
 .draft-teams {
-  display: grid; gap: 14px;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
-
 .draft-team {
+  /* Capped and centred rather than stretched — see .draft-teams above. */
+  max-width: 460px;
+  width: 100%;
+  justify-self: center;
   border: 1px solid var(--line); border-radius: 12px;
   background: var(--surface); overflow: hidden;
 }
