@@ -56,6 +56,7 @@ export function init(context) {
   ui.root = $('#roster');
   ui.list = $('#lineup-items');
   ui.main = $('#roster-main');
+  ui.privacy = $('#roster-privacy');
   ui.newButton = $('#lineup-new');
 
   ui.newButton.addEventListener('click', () => {
@@ -183,10 +184,54 @@ const host = {
 
 // ---------------------------------------------------------------- render
 
+/* Where these lineups are being kept, said plainly.
+ *
+ * A commissioner who created the league holds an admin token and no team, so
+ * there is no player to store a lineup against and everything falls back to
+ * this browser. That fallback is silent by design in plans.js — it has to be,
+ * or the tab would refuse to open — which makes saying so here the only thing
+ * standing between a player and losing their lineups to a cleared cache.
+ */
+function renderSaveState(season) {
+  if (!ui.privacy) return;
+  clear(ui.privacy);
+  ui.privacy.classList.remove('is-error');
+  if (!season) return;
+
+  const state = plans.saveState(season.id);
+
+  if (state.mode === 'local') {
+    if (!plans.storageWorks()) {
+      ui.privacy.classList.add('is-error');
+      ui.privacy.textContent =
+        'This browser is blocking local storage, so lineups cannot be saved at all.';
+      return;
+    }
+    ui.privacy.append(
+      h('strong', { text: 'Saved in this browser only. ' }),
+      document.createTextNode(
+        'Take a team on the League tab to store lineups against it, so they survive '
+        + 'a cleared cache and follow you to another device.',
+      ),
+    );
+    return;
+  }
+
+  if (state.status === 'error') {
+    ui.privacy.classList.add('is-error');
+    ui.privacy.textContent = `Not saved: ${state.message}`;
+    return;
+  }
+  ui.privacy.textContent = state.status === 'saving'
+    ? 'Saving to the league…'
+    : 'Saved to the league. These follow you to any device you sign in on.';
+}
+
 function render() {
   const season = ctx.season();
   clear(ui.list);
   clear(ui.main);
+  renderSaveState(season);
 
   if (!season) {
     ui.main.append(

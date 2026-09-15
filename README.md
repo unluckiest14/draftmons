@@ -14,30 +14,153 @@ National Dex, with the bans already applied.
 
 ---
 
-## Running it
+## Install
 
-Needs Python 3.11+.
+Needs **Python 3.11 or newer**. Nothing else — no Node, no build step, no
+database server. Check what you have:
+
+```bash
+python3 --version
+```
+
+### 1. Get the code
+
+```bash
+git clone https://github.com/unluckiest14/draftmons.git
+cd draftmons
+```
+
+### 2. Make a virtual environment
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
+```
 
-.venv/bin/python scripts/update_formats.py     # build the format tables (once)
+If that fails with **"ensurepip is not available"** — common on Debian, Ubuntu
+and WSL, where the standard library ships split into packages — take one of
+these two routes instead:
+
+```bash
+sudo apt install python3-venv        # then re-run the command above
+```
+
+```bash
+# or, with no root access: uv makes the environment and brings its own Python
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv venv .venv
+```
+
+### 3. Install the dependencies
+
+```bash
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+With `uv`, `uv pip install -r requirements.txt` is the equivalent and is
+considerably faster.
+
+Five packages: FastAPI and uvicorn to serve, httpx to reach PokéAPI, pydantic
+for the request and response shapes, and pytest. `json5` is listed too — the
+parser handles Showdown's data without it, but prefers it when present.
+
+---
+
+## Run
+
+```bash
+.venv/bin/python scripts/update_formats.py     # once: build the format tables
 .venv/bin/python -m uvicorn main:app --reload
 ```
 
-Then open **http://localhost:8000/app/** for the board, or
-**http://localhost:8000/docs** for the API.
+The first command reads the Showdown data in `data/` and writes 18 formats
+into the database. It needs no network and takes about a second. You only
+repeat it when you want to pick up new Showdown data.
 
-The database is created on first boot. There is nothing else to configure;
-`DRAFT_DB` moves it somewhere other than `./draft.db`.
+Then open:
 
-### Checking it works
+| | |
+| --- | --- |
+| **http://localhost:8000/app/** | the draft board — start here |
+| http://localhost:8000/docs | the API, with every route runnable |
+
+The trailing slash on `/app/` matters.
+
+`Ctrl+C` stops the server; leave the terminal open while you are using it.
+
+The database is created on first boot and needs no setup. `DRAFT_DB` moves it
+somewhere other than `./draft.db`, which is how the tests keep out of your
+league's way.
+
+### Activating instead
+
+If you would rather not type `.venv/bin/python` each time:
 
 ```bash
-.venv/bin/python -m pytest              # 256 tests
-.venv/bin/python scripts/smoke_test.py  # end-to-end against the real PokéAPI
+source .venv/bin/activate     # .venv\Scripts\activate on Windows
+uvicorn main:app --reload
 ```
+
+---
+
+## Checking it works
+
+```bash
+.venv/bin/python -m pytest              # the test suite, no network needed
+.venv/bin/python scripts/smoke_test.py  # end to end against the real PokéAPI
+```
+
+`smoke_test.py` is the fastest way to see whether a fresh install is sound: it
+builds the formats, applies the Showdown bans, pulls a real pool from PokéAPI,
+creates teams and prices Pokémon, printing a pass or fail for each step. It
+writes to a scratch database and never touches `draft.db`. Add `--all` to skip
+the PokéAPI half and run it offline.
+
+---
+
+## Letting other people in
+
+The server listens on localhost only. For a league, either bind it to your
+network:
+
+```bash
+.venv/bin/python -m uvicorn main:app --host 0.0.0.0    # same wifi only
+```
+
+...or put it on the internet without touching your router, using a
+[Cloudflare tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/):
+
+```bash
+cloudflared tunnel --url http://localhost:8000
+```
+
+That prints a public `https://…trycloudflare.com` address; add `/app/` and
+share it. Your machine has to stay awake, and the address changes each time
+you restart the tunnel.
+
+**Read the security note under Known gaps before you do either.** Most of the
+API takes no token, so anyone with the address can reprice a pool or reorder a
+draft. It is fine for a league in a group chat and not fine in public.
+
+---
+
+## If something goes wrong
+
+**`No module named uvicorn`** — the dependencies went into a different Python
+than the one you are running. Use `.venv/bin/python -m uvicorn`, not a bare
+`uvicorn`.
+
+**`Address already in use`** — the server is already running. Use it, or pick
+another port with `--port 8001`.
+
+**The board loads but says no formats** — `scripts/update_formats.py` has not
+been run yet. Run it and reload the page.
+
+**`{"detail":"Not Found"}`** — a URL that is not a route. The board is at
+`/app/`, with the slash; the tabs inside it are not addresses.
+
+**A pool build is slow the first time** — it is one PokéAPI request per
+Pokémon, a few hundred for a full format, and the results are cached
+afterwards. Around five seconds for Gen 9 OU on a decent connection.
 
 ---
 

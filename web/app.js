@@ -31,6 +31,16 @@ import * as session from './session.js';
 import * as standings from './standings.js';
 import { loadRules } from './pokepaste.js';
 
+/* Bump this whenever the frontend changes.
+ *
+ * Twice now a bug report has turned out to be a browser running a mix of old
+ * and new modules, and there was no way to tell from the outside. It is logged
+ * on boot and sits in the tooltip on the logo, so "which build are you on" is
+ * answerable in two seconds instead of by guesswork. */
+const BUILD = '2026-09-15-e';
+console.info(`Draftmons build ${BUILD}`);
+document.querySelector('.brand')?.setAttribute('title', `Draftmons build ${BUILD}`);
+
 const params = new URLSearchParams(location.search);
 
 /* `?season=2&format=gen9-ou` opens straight onto one board. Worth having

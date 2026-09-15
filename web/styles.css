@@ -236,7 +236,7 @@ select.compact { min-width: 130px; }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 12px;
 }
 
@@ -281,21 +281,40 @@ select.compact { min-width: 130px; }
 .card-cost.is-unpriced { background: var(--surface-2); color: var(--text-faint); border: 1px solid var(--border); }
 
 .card-sprite {
-  width: 76px;
-  height: 76px;
+  width: 88px;
+  height: 88px;
   object-fit: contain;
   image-rendering: -webkit-optimize-contrast;
 }
-.card-sprite.is-missing { display: grid; place-items: center; color: var(--text-faint); font-size: 22px; }
+.card-sprite.is-missing { display: grid; place-items: center; color: var(--text-faint); font-size: 26px; }
 
 .card-name {
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
-.card-types { display: flex; gap: 4px; margin-top: 3px; }
+/* On the board, the pills have to fit the card rather than the other way
+   round: two at their usual 80px floor come to 164px inside a cell whose
+   narrowest inner width is 132px, which is how the colours ended up hanging
+   off the edge of the square. Here they share the row instead — half each,
+   whether there are one or two — so a card is never wider than its contents
+   and a lone type lines up with the left half of a pair. */
+.card-types {
+  display: flex; gap: 4px; margin-top: 3px; width: 100%;
+  /* A lone type is half a card wide like either half of a pair, so it has to
+     be centred or it hangs off to the left under a centred name. */
+  justify-content: center;
+}
+.card-types .type {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: calc(50% - 2px);
+  padding: 3px 4px;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
 
 /* -------------------------------------------------------------- table */
 
@@ -330,7 +349,7 @@ table.pool tbody tr { cursor: pointer; }
 table.pool tbody tr:hover { background: var(--surface-hover); }
 table.pool tbody tr.is-banned { opacity: 0.48; }
 table.pool tbody tr:last-child td { border-bottom: none; }
-table.pool img { width: 44px; height: 44px; object-fit: contain; display: block; }
+table.pool img { width: 50px; height: 50px; object-fit: contain; display: block; }
 table.pool .row-sprite.is-missing {
   width: 44px;
   height: 44px;
@@ -363,10 +382,10 @@ table.pool .row-sprite.is-missing {
   box-sizing: border-box;
   /* Wide enough that even FIGHTING and ELECTRIC sit inside it, so every pill
      is the same width rather than most-of-them-plus-two-outliers. */
-  min-width: 72px;
-  padding: 2px 8px;
+  min-width: 80px;
+  padding: 3px 10px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -383,19 +402,24 @@ table.pool .row-sprite.is-missing {
 /* Narrow screens cannot afford two 66px pills beside a name and a cost, so
    the floor drops rather than the row wrapping or scrolling sideways. */
 @media (max-width: 560px) {
-  .type { min-width: 60px; font-size: 9px; padding: 2px 6px; }
+  /* The text grows with everything else, but the pill's floor does not: two
+     80px pills do not fit beside a name on a phone-width card. */
+  .type { min-width: 60px; font-size: 10px; padding: 2px 6px; }
 }
 /* Every row of pills centres them, so a one-type Pokémon and a two-type one
    line up down the column. */
 .card-types, .slot-types, .picker-types, .draft-pick-types, .elim-meta,
-.confirm-types, .cell-types {
+.confirm-types {
   align-items: center;
 }
 
-/* The pool table put its pills straight into a <td>, which is not a flex
-   container — so they had no gap at all and sat welded together once the
-   pills got wider. */
-.cell-types { display: flex; gap: 4px; flex-wrap: wrap; }
+/* The pool table puts its pills straight into a <td>, which needed a gap once
+   they got wider. It cannot get one from flex: making a table cell a flex
+   container takes it out of the table's own layout, and the pills then drift
+   out of line with the row they belong to. A margin between them does the
+   same job and leaves the cell a cell. */
+.cell-types { white-space: nowrap; }
+.cell-types .type + .type { margin-left: 4px; }
 
 .type[data-type='normal']   { background: #9099a1; }
 .type[data-type='fire']     { background: #ff9d55; }
@@ -526,9 +550,9 @@ table.pool .row-sprite.is-missing {
   gap: 9px;
   margin-bottom: 5px;
 }
-.stat-name { font-size: 12px; color: var(--text-dim); }
-.stat-value { font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; }
-.stat-track { height: 7px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+.stat-name { font-size: 13px; color: var(--text-dim); }
+.stat-value { font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; }
+.stat-track { height: 9px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
 .stat-fill { height: 100%; border-radius: 999px; }
 .stat-total { margin-top: 10px; padding-top: 9px; border-top: 1px dashed var(--border); }
 
@@ -782,7 +806,7 @@ table.moves tbody tr:last-child td { border-bottom: none; }
 .meter-value.is-over { color: var(--danger); }
 .meter-of { font-size: 12px; color: var(--text-dim); }
 .meter-left { margin-left: auto; font-size: 11px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
-.meter-track { height: 6px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+.meter-track { height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
 .meter-fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.15s; }
 .meter-fill.is-over { background: var(--danger); }
 
@@ -847,12 +871,12 @@ table.moves tbody tr:last-child td { border-bottom: none; }
 }
 
 .slot-top { display: flex; align-items: center; gap: 9px; }
-.slot-sprite { width: 46px; height: 46px; flex: none; object-fit: contain; }
+.slot-sprite { width: 54px; height: 54px; flex: none; object-fit: contain; }
 .slot-sprite.is-missing { display: grid; place-items: center; color: var(--text-faint); }
 .slot-ident { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .slot-name {
   font-weight: 620;
-  font-size: 13.5px;
+  font-size: 14.5px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1015,7 +1039,7 @@ table.moves tbody tr:last-child td { border-bottom: none; }
 .picker-row.is-taken { opacity: 0.45; cursor: default; }
 .picker-row.is-taken:hover { background: none; border-color: transparent; }
 
-.picker-sprite { width: 38px; height: 38px; flex: none; object-fit: contain; }
+.picker-sprite { width: 44px; height: 44px; flex: none; object-fit: contain; }
 .picker-sprite.is-missing { display: grid; place-items: center; color: var(--text-faint); }
 .picker-name { flex: 1; min-width: 0; font-weight: 580; font-size: 13px; }
 .picker-types { display: flex; gap: 4px; flex: none; }
@@ -1148,8 +1172,8 @@ table.moves tbody tr:last-child td { border-bottom: none; }
   display: flex; gap: 8px; align-items: center;
   padding: 4px 6px; border-radius: 8px; font-size: 13px;
 }
-.draft-pick-sprite { width: 32px; height: 32px; object-fit: contain; flex: none; }
-.draft-pick-name { font-weight: 600; }
+.draft-pick-sprite { width: 38px; height: 38px; object-fit: contain; flex: none; }
+.draft-pick-name { font-weight: 600; font-size: 13.5px; }
 .draft-pick-types { display: flex; gap: 4px; }
 .draft-pick-cost {
   margin-left: auto; font-variant-numeric: tabular-nums; color: var(--ink-dim);
@@ -1178,7 +1202,7 @@ table.moves tbody tr:last-child td { border-bottom: none; }
   display: grid; gap: 8px; max-height: 52vh; overflow-y: auto;
   /* Wider cards: at 140px a name like Basculegion Male wrapped to three lines
      and pushed its cost out of the card. */
-  grid-template-columns: repeat(auto-fill, minmax(204px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(222px, 1fr));
 }
 .picker-card {
   display: flex; gap: 8px; align-items: center;
@@ -1190,14 +1214,14 @@ table.moves tbody tr:last-child td { border-bottom: none; }
    past the card; the cost keeps its width either way. */
 /* Wide enough for the longest names in the pool — Basculegion Male,
    Crabominable — to wrap at the space rather than through the word. */
-.picker-card .picker-name { flex: 1; min-width: 0; font-size: 11.5px; overflow-wrap: break-word; }
-.picker-card .picker-sprite { width: 42px; height: 42px; }
+.picker-card .picker-name { flex: 1; min-width: 0; font-size: 12.5px; overflow-wrap: break-word; }
+.picker-card .picker-sprite { width: 48px; height: 48px; }
 .picker-card .picker-cost { flex: none; margin-left: 6px; }
 .picker-card:hover { border-color: var(--accent); }
 /* Dimmed, not disabled: the click still goes to the server, which is the only
    thing that decides, and which can say why. */
 .picker-card.is-unaffordable { opacity: .42; }
-.picker-sprite { width: 34px; height: 34px; object-fit: contain; flex: none; }
+.picker-sprite { width: 38px; height: 38px; object-fit: contain; flex: none; }
 .picker-name { font-size: 12px; font-weight: 600; line-height: 1.2; }
 .picker-cost {
   margin-left: auto; font-size: 13px; font-weight: 700;
@@ -1594,7 +1618,7 @@ table.standings tbody tr:first-child .rank-cell { color: var(--accent); font-wei
    The bar is the comparison, so it gets the width rather than a column. */
 .elim-row {
   display: grid;
-  grid-template-columns: 20px 44px 1fr auto;
+  grid-template-columns: 22px 52px 1fr auto;
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
@@ -1602,10 +1626,10 @@ table.standings tbody tr:first-child .rank-cell { color: var(--accent); font-wei
   border-radius: 8px;
 }
 .elim-rank { font-size: 13px; font-weight: 700; color: var(--text-faint); text-align: center; }
-.elim-sprite { width: 44px; height: 44px; object-fit: contain; }
+.elim-sprite { width: 52px; height: 52px; object-fit: contain; }
 .elim-sprite.is-missing { display: grid; place-items: center; color: var(--text-faint); }
 .elim-ident { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.elim-name { font-weight: 650; font-size: 13.5px; }
+.elim-name { font-weight: 650; font-size: 15px; }
 .elim-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 .elim-team { font-size: 11.5px; color: var(--text-dim); }
 .elim-score { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
@@ -1614,7 +1638,7 @@ table.standings tbody tr:first-child .rank-cell { color: var(--accent); font-wei
 .elim-matches { width: 100%; text-align: right; font-size: 11px; color: var(--text-faint); }
 .elim-bar {
   grid-column: 2 / -1;
-  height: 5px;
+  height: 7px;
   background: var(--surface);
   border-radius: 999px;
   overflow: hidden;
@@ -2090,7 +2114,7 @@ table.standings tbody tr:first-child .rank-cell { color: var(--accent); font-wei
 }
 
 .confirm-head { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 14px; }
-.confirm-art { width: 96px; height: 96px; flex: none; object-fit: contain; }
+.confirm-art { width: 108px; height: 108px; flex: none; object-fit: contain; }
 .confirm-art.is-missing { display: grid; place-items: center; color: var(--text-faint); }
 .confirm-ident { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
 .confirm-name { margin: 0; font-size: 19px; font-weight: 680; letter-spacing: -0.015em; }
@@ -2122,7 +2146,7 @@ table.standings tbody tr:first-child .rank-cell { color: var(--accent); font-wei
 }
 .confirm-stat-name { font-size: 11px; font-weight: 600; color: var(--text-faint); }
 .confirm-stat-value { font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; }
-.confirm-stat-track { height: 6px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+.confirm-stat-track { height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
 .confirm-stat-fill { height: 100%; background: var(--accent); border-radius: 999px; }
 
 .confirm-note { margin: 0 0 14px; font-size: 12.5px; color: var(--text-dim); }
@@ -2240,9 +2264,9 @@ table.standings tbody tr:first-child .rank-cell { color: var(--accent); font-wei
   color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
-.queue-sprite { width: 30px; height: 30px; object-fit: contain; flex: none; }
+.queue-sprite { width: 34px; height: 34px; object-fit: contain; flex: none; }
 .queue-sprite.is-missing { display: grid; place-items: center; color: var(--text-faint); }
-.queue-name { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; }
+.queue-name { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; }
 .queue-cost { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .queue-actions { display: flex; gap: 3px; flex: none; }
 .queue-move {
@@ -2293,7 +2317,7 @@ table.standings tbody tr:first-child .rank-cell { color: var(--accent); font-wei
 .queue-chip.is-unaffordable { opacity: 0.45; }
 .queue-chip-rank { font-size: 10px; font-weight: 700; color: var(--accent); }
 .queue-chip:hover .queue-chip-rank { color: #fff; }
-.queue-chip-sprite { width: 26px; height: 26px; object-fit: contain; flex: none; }
+.queue-chip-sprite { width: 30px; height: 30px; object-fit: contain; flex: none; }
 .queue-chip-name { font-size: 12.5px; font-weight: 600; }
 .queue-chip-cost { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
@@ -2574,13 +2598,13 @@ table.standings tbody tr:first-child .rank-cell { color: var(--accent); font-wei
   padding: 3px 0; border: 0; background: none; color: inherit;
   font: inherit; text-align: left; cursor: pointer;
 }
-.roster-sprite { width: 32px; height: 32px; object-fit: contain; flex: none; }
+.roster-sprite { width: 38px; height: 38px; object-fit: contain; flex: none; }
 .roster-sprite.is-missing {
   display: grid; place-items: center;
   border: 1px dashed var(--line); border-radius: 6px; color: var(--ink-dim);
 }
 .roster-name {
-  flex: 1; font-size: 13px; font-weight: 600;
+  flex: 1; font-size: 14px; font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .roster-types { display: flex; gap: 3px; flex: none; }

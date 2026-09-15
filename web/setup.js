@@ -339,6 +339,40 @@ function stepShare() {
     onclick: () => close(),
   });
 
+  /* Taking a team here is what lets the commissioner save anything.
+   *
+   * Creating a league hands back an admin token and nothing else — no team,
+   * and no player identity. Rosters and lineups are stored per player and
+   * scoped by a player token, so a commissioner without one cannot save to
+   * the server at all; the planner quietly falls back to this browser's
+   * localStorage and the work is gone with the cache.
+   *
+   * Most commissioners play in their own league anyway, so this is offered
+   * rather than required — a commissioner who is only running the draft for
+   * a table does not need a team and should not be given one. */
+  const teamName = h('input', {
+    type: 'text', maxlength: '60', placeholder: 'Your team name',
+  });
+  const playNote = h('span', { class: 'setup-hint' });
+  const play = h('button', { class: 'button', type: 'button', text: 'Take a team' });
+
+  play.addEventListener('click', () => busy(play, 'Joining…', async () => {
+    const wanted = teamName.value.trim();
+    if (!wanted) throw new Error('Give your team a name first.');
+    const joined = await api(`/join/${code}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ team_name: wanted }),
+    });
+    session.remember(draft.season.id, { player: joined.token, team: joined.team });
+    clear(playNote);
+    playNote.append(document.createTextNode(
+      `You are ${joined.team.name}. Your rosters now save to the league, not just this browser.`,
+    ));
+    teamName.disabled = true;
+    play.disabled = true;
+  }));
+
   return h('div', { class: 'setup-pane' }, [
     h('p', { class: 'setup-lead', text: `${draft.season.name} is ready. Share the code and people can join.` }),
     copyRow('Join code', code, 'Players enter this on the League tab.'),
@@ -357,6 +391,12 @@ function stepShare() {
         }),
       ]),
     ]) : null,
+    h('div', { class: 'setup-field' }, [
+      h('span', { class: 'field-label', text: 'Playing in it yourself?' }),
+      h('div', { class: 'setup-copyrow' }, [teamName, play]),
+      h('span', { class: 'setup-hint', text: 'Running a league does not give you a team. Take one if you are drafting too — it is also what lets your rosters save to the league rather than to this browser.' }),
+      playNote,
+    ]),
     h('div', { class: 'setup-actions' }, [done]),
   ]);
 }
